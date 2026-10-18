@@ -82,6 +82,25 @@ describe('standalone skill bundle', () => {
     expect(JSON.parse(result.stdout).actionCount).toBe(1);
   });
 
+  it.each([
+    ['json', '"formatVersion"'],
+    ['text', 'Shortcuts Doctor:'],
+    ['md', '# Shortcuts Doctor report'],
+  ])('renders --format %s from the bundle without leaking parameters', (format, expected) => {
+    const file = join(temporaryDirectory(), 'export.json');
+    writeFileSync(file, JSON.stringify(workflow(action('sendemail', { Body: 'private body' }))));
+    const result = run(['--format', format, '--', file]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(expected);
+    expect(result.stdout).not.toContain('private body');
+  });
+
+  it('defaults to JSON when piped', () => {
+    const file = join(temporaryDirectory(), 'export.json');
+    writeFileSync(file, JSON.stringify(workflow()));
+    expect(JSON.parse(run(['--', file]).stdout).actionCount).toBe(0);
+  });
+
   it('fails without exposing a missing file path', () => {
     const file = join(temporaryDirectory(), 'private-personal-name.json');
     const result = run(['--', file]);

@@ -53,6 +53,47 @@ describe('main', () => {
     expect(output(stderr)).toBe('');
   });
 
+  it.each([
+    [true, 'Shortcuts Doctor:'],
+    [false, '"formatVersion"'],
+  ])('defaults by terminal state (isTTY=%s)', (isTTY, expected) => {
+    const original = process.stdout.isTTY;
+    process.stdout.isTTY = isTTY;
+    try {
+      const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+      expect(main(['--', file])).toBe(0);
+      expect(output(stdout)).toContain(expected);
+    } finally {
+      process.stdout.isTTY = original;
+    }
+  });
+
+  it('lets --format json override the terminal default', () => {
+    const original = process.stdout.isTTY;
+    process.stdout.isTTY = true;
+    try {
+      const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+      expect(main(['--format', 'json', '--', file])).toBe(0);
+      expect(JSON.parse(output(stdout)).actionCount).toBe(0);
+    } finally {
+      process.stdout.isTTY = original;
+    }
+  });
+
+  it.each([
+    ['text', 'Shortcuts Doctor:'],
+    ['md', '# Shortcuts Doctor report'],
+  ])('renders --format %s', (format, expected) => {
+    const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+    expect(main(['--format', format, '--', file])).toBe(0);
+    expect(output(stdout)).toContain(expected);
+  });
+
+  it('rejects unknown formats', () => {
+    expect(main(['--format', 'xml', 'x'])).toBe(1);
+    expect(output(stdout)).toContain('Usage:');
+  });
+
   it.each([[[]], [['a', 'b']], [['--']]])('prints usage and fails for %j', args => {
     expect(main(args)).toBe(1);
     expect(output(stdout)).toContain('Usage:');
