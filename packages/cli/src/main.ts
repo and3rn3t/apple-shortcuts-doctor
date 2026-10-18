@@ -1,14 +1,15 @@
-import { inspectWorkflow, renderReport } from '@shortcuts-doctor/core';
+import { inspectWorkflow, renderReport, toReportV1 } from '@shortcuts-doctor/core';
 import type { ReportFormat } from '@shortcuts-doctor/core';
 import { parseExport } from './plutil.ts';
 import { readExport } from './read-export.ts';
 
 const USAGE =
-  'Usage: node inspect-shortcut.mjs [--format text|json|md] -- "/absolute/path/export.shortcut"\n';
+  'Usage: node inspect-shortcut.mjs [--format text|json|md] [--format-version 1|2] -- "/absolute/path/export.shortcut"\n';
 const FORMATS: readonly string[] = ['text', 'json', 'md'];
 
 interface ParsedArgs {
   format: ReportFormat;
+  formatVersion: 1 | 2;
   files: string[];
   help: boolean;
 }
@@ -23,7 +24,7 @@ function defaultFormat(): ReportFormat {
 }
 
 function parseArgs(argv: string[]): ParsedArgs | undefined {
-  const parsed: ParsedArgs = { format: defaultFormat(), files: [], help: false };
+  const parsed: ParsedArgs = { format: defaultFormat(), formatVersion: 2, files: [], help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] as string;
     if (arg === '--') {
@@ -35,6 +36,10 @@ function parseArgs(argv: string[]): ParsedArgs | undefined {
       const value = argv[++i];
       if (value === undefined || !FORMATS.includes(value)) return undefined;
       parsed.format = value as ReportFormat;
+    } else if (arg === '--format-version') {
+      const value = argv[++i];
+      if (value !== '1' && value !== '2') return undefined;
+      parsed.formatVersion = value === '1' ? 1 : 2;
     } else parsed.files.push(arg);
   }
   return parsed;
@@ -49,7 +54,12 @@ export function main(argv: string[]): number {
   }
   try {
     const report = inspectWorkflow(parseExport(readExport(args.files[0] as string)));
-    process.stdout.write(renderReport(report, args.format));
+    const legacyJson = args.format === 'json' && args.formatVersion === 1;
+    process.stdout.write(
+      legacyJson
+        ? `${JSON.stringify(toReportV1(report), null, 2)}\n`
+        : renderReport(report, args.format)
+    );
     return 0;
   } catch (error) {
     // Filesystem error messages can contain private paths; never echo them.

@@ -89,6 +89,19 @@ describe('main', () => {
     expect(output(stdout)).toContain(expected);
   });
 
+  it('emits the legacy shape with --format-version 1', () => {
+    const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+    expect(main(['--format', 'json', '--format-version', '1', '--', file])).toBe(0);
+    const report = JSON.parse(output(stdout));
+    expect(report.formatVersion).toBe(1);
+    expect(report).not.toHaveProperty('summary');
+  });
+
+  it.each([['--format-version', '3'], ['--format-version']])('rejects %j', (...args) => {
+    expect(main([...args, 'x'])).toBe(1);
+    expect(output(stdout)).toContain('Usage:');
+  });
+
   it('rejects unknown formats', () => {
     expect(main(['--format', 'xml', 'x'])).toBe(1);
     expect(output(stdout)).toContain('Usage:');

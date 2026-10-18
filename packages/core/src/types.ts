@@ -27,17 +27,34 @@ export interface InspectedAction {
 
 export interface Finding {
   code: FindingCode;
+  /** Stable rule key: the catalog action name for rule findings, otherwise the code. */
+  ruleId: string;
   severity: Severity;
   /** 1-based action indexes. */
   actions: number[];
   message: string;
 }
 
+export interface ReportSummary {
+  findingsBySeverity: Record<Severity, number>;
+  actionsByCategory: Record<ActionCategory, number>;
+}
+
 export interface Report {
+  formatVersion: 2;
+  actionCount: number;
+  summary: ReportSummary;
+  actions: InspectedAction[];
+  findings: Finding[];
+  limitations: string[];
+}
+
+/** Legacy shape, kept available through `toReportV1` and `--format-version 1`. */
+export interface ReportV1 {
   formatVersion: 1;
   actionCount: number;
   actions: InspectedAction[];
-  findings: Finding[];
+  findings: Omit<Finding, 'ruleId'>[];
   limitations: string[];
 }
 

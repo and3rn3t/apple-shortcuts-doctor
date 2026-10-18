@@ -114,6 +114,7 @@ function indexOutputUuids(rawActions) {
 function duplicateOutputFindings(uuidIndexes) {
   return [...uuidIndexes.values()].filter((indexes) => indexes.length > 1).map((indexes) => ({
     code: "duplicate-output",
+    ruleId: "duplicate-output",
     severity: "warning",
     actions: indexes,
     message: "Multiple actions declare the same output UUID; references are ambiguous."
@@ -142,6 +143,7 @@ function classificationFinding(identifier, position) {
   if (!rule) {
     return {
       code: "unknown-action",
+      ruleId: "unknown-action",
       severity: "review",
       actions: [position],
       message: "Unrecognized action. Check its app, availability, permissions, and behavior manually."
@@ -150,6 +152,7 @@ function classificationFinding(identifier, position) {
   const isHighRisk = rule.category === "code-execution" || rule.category === "destructive";
   return {
     code: rule.category,
+    ruleId: identifier.slice(ACTION_PREFIX.length),
     severity: isHighRisk ? "warning" : "review",
     actions: [position],
     message: rule.message
@@ -158,9 +161,39 @@ function classificationFinding(identifier, position) {
 function unresolvedReferenceFinding(position) {
   return {
     code: "unresolved-reference",
+    ruleId: "unresolved-reference",
     severity: "warning",
     actions: [position],
     message: "An output reference is missing, ambiguous, or not from an earlier action. Verify it in Shortcuts."
+  };
+}
+function summarize(actions, findings) {
+  const findingsBySeverity = { review: 0, warning: 0 };
+  for (const finding of findings) findingsBySeverity[finding.severity]++;
+  const actionsByCategory = {
+    "sensitive-input": 0,
+    outbound: 0,
+    "code-execution": 0,
+    destructive: 0,
+    dependency: 0,
+    basic: 0,
+    unknown: 0
+  };
+  for (const action of actions) actionsByCategory[action.category]++;
+  return { findingsBySeverity, actionsByCategory };
+}
+function toReportV1(report) {
+  return {
+    formatVersion: 1,
+    actionCount: report.actionCount,
+    actions: report.actions,
+    findings: report.findings.map((finding) => ({
+      code: finding.code,
+      severity: finding.severity,
+      actions: finding.actions,
+      message: finding.message
+    })),
+    limitations: report.limitations
   };
 }
 function inspectWorkflow(workflow) {
@@ -189,8 +222,9 @@ function inspectWorkflow(workflow) {
     };
   });
   return {
-    formatVersion: 1,
+    formatVersion: 2,
     actionCount: actions.length,
+    summary: summarize(actions, findings),
     actions,
     findings,
     limitations: [...LIMITATIONS]
@@ -343,7 +377,7 @@ function readExport(file) {
 }
 
 // packages/cli/src/main.ts
-var USAGE = 'Usage: node inspect-shortcut.mjs [--format text|json|md] -- "/absolute/path/export.shortcut"\n';
+var USAGE = 'Usage: node inspect-shortcut.mjs [--format text|json|md] [--format-version 1|2] -- "/absolute/path/export.shortcut"\n';
 var FORMATS = ["text", "json", "md"];
 function hasErrorCode(error) {
   return error instanceof Error && "code" in error && Boolean(error.code);
@@ -352,7 +386,7 @@ function defaultFormat() {
   return process.stdout.isTTY ? "text" : "json";
 }
 function parseArgs(argv) {
-  const parsed = { format: defaultFormat(), files: [], help: false };
+  const parsed = { format: defaultFormat(), formatVersion: 2, files: [], help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--") {
@@ -364,6 +398,10 @@ function parseArgs(argv) {
       const value = argv[++i];
       if (value === void 0 || !FORMATS.includes(value)) return void 0;
       parsed.format = value;
+    } else if (arg === "--format-version") {
+      const value = argv[++i];
+      if (value !== "1" && value !== "2") return void 0;
+      parsed.formatVersion = value === "1" ? 1 : 2;
     } else parsed.files.push(arg);
   }
   return parsed;
@@ -376,7 +414,11 @@ function main(argv) {
   }
   try {
     const report = inspectWorkflow(parseExport2(readExport(args.files[0])));
-    process.stdout.write(renderReport(report, args.format));
+    const legacyJson = args.format === "json" && args.formatVersion === 1;
+    process.stdout.write(
+      legacyJson ? `${JSON.stringify(toReportV1(report), null, 2)}
+` : renderReport(report, args.format)
+    );
     return 0;
   } catch (error) {
     const message = hasErrorCode(error) ? "Cannot read the supplied export file." : error.message;

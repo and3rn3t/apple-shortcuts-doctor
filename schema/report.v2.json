@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/and3rn3t/apple-shortcuts-doctor/schema/report.v2.json",
+  "title": "Shortcuts Doctor report (formatVersion 2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["formatVersion", "actionCount", "summary", "actions", "findings", "limitations"],
+  "$defs": {
+    "category": {
+      "enum": [
+        "sensitive-input",
+        "outbound",
+        "code-execution",
+        "destructive",
+        "dependency",
+        "basic",
+        "unknown"
+      ]
+    },
+    "severity": {
+      "enum": ["review", "warning"]
+    },
+    "actionIndex": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "properties": {
+    "formatVersion": {
+      "const": 2
+    },
+    "actionCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2000
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["findingsBySeverity", "actionsByCategory"],
+      "properties": {
+        "findingsBySeverity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["review", "warning"],
+          "properties": {
+            "review": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "warning": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "actionsByCategory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sensitive-input",
+            "outbound",
+            "code-execution",
+            "destructive",
+            "dependency",
+            "basic",
+            "unknown"
+          ],
+          "properties": {
+            "sensitive-input": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "outbound": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "code-execution": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "destructive": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dependency": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "basic": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unknown": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index",
+          "identifier",
+          "recognized",
+          "category",
+          "dependsOn",
+          "unresolvedReferenceCount"
+        ],
+        "properties": {
+          "index": {
+            "$ref": "#/$defs/actionIndex"
+          },
+          "identifier": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "recognized": {
+            "type": "boolean"
+          },
+          "category": {
+            "$ref": "#/$defs/category"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/actionIndex"
+            }
+          },
+          "unresolvedReferenceCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "ruleId", "severity", "actions", "message"],
+        "properties": {
+          "code": {
+            "enum": [
+              "sensitive-input",
+              "outbound",
+              "code-execution",
+              "destructive",
+              "dependency",
+              "unknown-action",
+              "duplicate-output",
+              "unresolved-reference"
+            ]
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/$defs/severity"
+          },
+          "actions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/actionIndex"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -47,6 +47,6 @@ describe('renderers', () => {
   });
 
   it('renderReport emits JSON for json', () => {
-    expect(JSON.parse(renderReport(report, 'json')).formatVersion).toBe(1);
+    expect(JSON.parse(renderReport(report, 'json')).formatVersion).toBe(2);
   });
 });
