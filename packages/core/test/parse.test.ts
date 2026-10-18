@@ -38,6 +38,18 @@ describe('export decoding', () => {
 
   it('rejects plists when no converter is available', () => {
     expect(() => parseExport(bytes('<plist/>'))).toThrow('Supply a JSON workflow export');
+    expect(() =>
+      parseExport(bytes('<plist/>'), { plistUnavailableMessage: 'Fixed platform message.' })
+    ).toThrow('Fixed platform message.');
+  });
+
+  it('replaces converter errors with a content-free message', () => {
+    const convertPlist = vi.fn(() => {
+      throw new Error('Unexpected value <string>private plist value</string>');
+    });
+    const decode = (): unknown => parseExport(bytes('<plist/>'), { convertPlist });
+    expect(decode).toThrow('Cannot decode plist as JSON.');
+    expect(decode).not.toThrow('private plist value');
   });
 
   it('limits input before decoding', () => {

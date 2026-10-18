@@ -200,6 +200,7 @@ function inspectWorkflow(workflow) {
 // packages/core/src/parse.ts
 var MAX_BYTES = 4 * 1024 * 1024;
 var BPLIST_MAGIC = [98, 112, 108, 105, 115, 116, 48, 48];
+var DEFAULT_PLIST_UNAVAILABLE = "Plist inspection is not available here. Supply a JSON workflow export.";
 function isBinaryPlist(bytes) {
   return BPLIST_MAGIC.every((byte, index) => bytes[index] === byte);
 }
@@ -219,39 +220,34 @@ function parseExport(bytes, options = {}) {
     );
   }
   if (!options.convertPlist) {
-    throw new Error("Plist inspection is not available here. Supply a JSON workflow export.");
+    throw new Error(options.plistUnavailableMessage ?? DEFAULT_PLIST_UNAVAILABLE);
   }
-  return options.convertPlist(bytes);
+  try {
+    return options.convertPlist(bytes);
+  } catch {
+    throw new Error(
+      "Cannot decode plist as JSON. It may be malformed or contain unsupported plist values."
+    );
+  }
 }
 
 // packages/cli/src/plutil.ts
 import { execFileSync } from "node:child_process";
 var PLUTIL_PATH = "/usr/bin/plutil";
 var PLUTIL_TIMEOUT_MS = 5e3;
-function createPlutilConverter(platform = process.platform) {
-  return (bytes) => {
-    if (platform !== "darwin") {
-      throw new Error(
-        "Plist inspection requires macOS plutil. Supply a JSON workflow on this platform."
-      );
-    }
-    try {
-      const json = execFileSync(PLUTIL_PATH, ["-convert", "json", "-o", "-", "--", "-"], {
-        input: bytes,
-        timeout: PLUTIL_TIMEOUT_MS,
-        maxBuffer: MAX_BYTES * 4,
-        stdio: ["pipe", "pipe", "ignore"]
-      });
-      return JSON.parse(json.toString("utf8"));
-    } catch {
-      throw new Error(
-        "Cannot decode plist as JSON. It may be malformed or contain unsupported plist values."
-      );
-    }
-  };
+var PLUTIL_UNAVAILABLE = "Plist inspection requires macOS plutil. Supply a JSON workflow on this platform.";
+function convertWithPlutil(bytes) {
+  const json = execFileSync(PLUTIL_PATH, ["-convert", "json", "-o", "-", "--", "-"], {
+    input: bytes,
+    timeout: PLUTIL_TIMEOUT_MS,
+    maxBuffer: MAX_BYTES * 4,
+    stdio: ["pipe", "pipe", "ignore"]
+  });
+  return JSON.parse(json.toString("utf8"));
 }
 function parseExport2(bytes, platform = process.platform) {
-  return parseExport(bytes, { convertPlist: createPlutilConverter(platform) });
+  const options = platform === "darwin" ? { convertPlist: convertWithPlutil } : { plistUnavailableMessage: PLUTIL_UNAVAILABLE };
+  return parseExport(bytes, options);
 }
 
 // packages/cli/src/read-export.ts
@@ -305,7 +301,7 @@ function isEntrypoint() {
 if (isEntrypoint()) process.exitCode = main(process.argv.slice(2));
 export {
   MAX_BYTES,
-  createPlutilConverter,
+  convertWithPlutil,
   inspectWorkflow,
   main,
   parseExport2 as parseExport,

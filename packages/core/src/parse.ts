@@ -4,9 +4,14 @@ export const MAX_BYTES = 4 * 1024 * 1024;
 
 const BPLIST_MAGIC = [0x62, 0x70, 0x6c, 0x69, 0x73, 0x74, 0x30, 0x30]; // "bplist00"
 
+const DEFAULT_PLIST_UNAVAILABLE =
+  'Plist inspection is not available here. Supply a JSON workflow export.';
+
 export interface ParseOptions {
   /** Decodes XML/binary plists. Without one, plist exports are rejected. */
   convertPlist?: PlistConverter;
+  /** Fixed, content-free message used when no converter is supplied. */
+  plistUnavailableMessage?: string;
 }
 
 function isBinaryPlist(bytes: Uint8Array): boolean {
@@ -36,7 +41,14 @@ export function parseExport(bytes: Uint8Array, options: ParseOptions = {}): unkn
     );
   }
   if (!options.convertPlist) {
-    throw new Error('Plist inspection is not available here. Supply a JSON workflow export.');
+    throw new Error(options.plistUnavailableMessage ?? DEFAULT_PLIST_UNAVAILABLE);
   }
-  return options.convertPlist(bytes);
+  try {
+    return options.convertPlist(bytes);
+  } catch {
+    // Converter errors may quote plist contents; never let them escape.
+    throw new Error(
+      'Cannot decode plist as JSON. It may be malformed or contain unsupported plist values.'
+    );
+  }
 }
