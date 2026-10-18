@@ -1,4 +1,4 @@
-# Default: Node.js quality pipeline (matches and3rn3t repo conventions).
+# Node.js test pipeline for the standalone skill.
 # Python variant at the bottom — swap the jobs if this is a Python project.
 #
 # Shorter alternative — call the shared reusable workflow instead:
@@ -6,7 +6,7 @@
 #     quality:
 #       uses: and3rn3t/.github/.github/workflows/reusable-node-verify.yml@v1
 #       with:
-#         command: npm run lint && npm run type-check && npm test && npm run build
+#         command: pnpm test
 
 name: CI
 
@@ -26,29 +26,24 @@ permissions:
 
 jobs:
   quality:
-    name: Lint, Type-check & Test
+    name: Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4.2.0
+        with:
+          standalone: true
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          cache: npm # switch to pnpm for pnpm repos (also swap install below)
+          cache: pnpm
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         env:
           HUSKY: 0
-      - name: Lint
-        run: npm run lint
-      - name: Type check
-        run: npm run type-check
-      - name: Format check
-        run: npm run format:check
-      - name: Tests with coverage
-        run: npm test
-      - name: Build
-        run: npm run build
+      - name: Tests
+        run: pnpm test
 
   # --- Python variant (replace the quality job with this for Python projects) ---
   # test:
