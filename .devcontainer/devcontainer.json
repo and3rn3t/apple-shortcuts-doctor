@@ -1,0 +1,52 @@
+// Dev Container configuration
+// Docs: https://containers.dev/implementors/json_reference/
+//
+// TODO: Customize this for your project's language, runtime, and tooling needs.
+// This template uses the universal image which includes Node.js, Python, Java,
+// .NET, PHP, Go, Ruby, and common CLI tools out of the box.
+{
+  // TODO: Replace with your project name
+  "name": "My Project Dev Container",
+
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+
+  // -------------------------------------------------------------------
+  // Features — add language runtimes, tools, or CLIs
+  // Docs: https://containers.dev/features
+  // -------------------------------------------------------------------
+  // "features": {
+  //   // TODO: Uncomment and pin versions for the runtimes you need
+  //   "ghcr.io/devcontainers/features/node:1": { "version": "24" },
+  //   "ghcr.io/devcontainers/features/python:1": { "version": "3.12" },
+  //   "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  // },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "github.copilot",
+        "github.copilot-chat",
+        "editorconfig.editorconfig",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "eamodio.gitlens"
+        // TODO: Add extensions for your stack (e.g., ms-python.python, golang.go)
+      ]
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Port forwarding — expose application or database ports
+  // -------------------------------------------------------------------
+  // "forwardPorts": [3000, 5432],
+
+  // -------------------------------------------------------------------
+  // Lifecycle commands — run after the container is created
+  // -------------------------------------------------------------------
+  // "postCreateCommand": "npm install",
+
+  // -------------------------------------------------------------------
+  // Remote user — override the default user inside the container
+  // -------------------------------------------------------------------
+  // "remoteUser": "vscode"
+}

@@ -1,0 +1,9 @@
+---
+description: Project guidelines — single source of truth is /AGENTS.md
+alwaysApply: true
+---
+
+Follow the project guidelines defined in the root AGENTS.md file:
+stack defaults, build commands, code style, architecture, testing,
+security, and git conventions are all defined there. Edit AGENTS.md,
+not this file.

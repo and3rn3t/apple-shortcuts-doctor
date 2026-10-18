@@ -1,0 +1,37 @@
+# CODEOWNERS — Define code ownership for automated review requests
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# TODO: Uncomment and customize the patterns below for your project.
+# Each line is a file pattern followed by one or more GitHub usernames or teams.
+# The last matching pattern takes precedence.
+#
+# Format:
+#   pattern    @owner1 @owner2
+
+# --- Default owner for everything ---
+*                        @and3rn3t
+
+# --- Documentation ---
+# *.md                     @your-org/docs-team
+# docs/                    @your-org/docs-team
+
+# --- CI/CD and DevOps ---
+# .github/                 @your-org/devops
+# .github/workflows/       @your-org/devops
+
+# --- Frontend ---
+# src/components/          @your-org/frontend
+# src/pages/               @your-org/frontend
+# *.css                    @your-org/frontend
+
+# --- Backend / API ---
+# src/api/                 @your-org/backend
+# src/services/            @your-org/backend
+
+# --- Database ---
+# migrations/              @your-org/backend @your-org/dba
+# src/models/              @your-org/backend
+
+# --- Security-sensitive files ---
+# src/auth/                @your-org/security
+# SECURITY.md              @your-org/security

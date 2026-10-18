@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "echo '{\"systemMessage\": \"Reminder: Run tests after code changes. Check for lint errors before committing.\"}'"
+      }
+    ]
+  }
+}

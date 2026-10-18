@@ -1,0 +1,12 @@
+# Canonical starter — see docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+name = "REPLACE-project-name"
+compatibility_date = "2026-07-01"
+pages_build_output_dir = "./dist"
+
+[observability]
+enabled = true
+
+# Secrets via `wrangler secret put NAME` — never in this file.
+# [[kv_namespaces]]
+# binding = "MY_KV"
+# id = "..."

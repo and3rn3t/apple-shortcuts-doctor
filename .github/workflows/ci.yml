@@ -1,0 +1,68 @@
+# Default: Node.js quality pipeline (matches and3rn3t repo conventions).
+# Python variant at the bottom — swap the jobs if this is a Python project.
+#
+# Shorter alternative — call the shared reusable workflow instead:
+#   jobs:
+#     quality:
+#       uses: and3rn3t/.github/.github/workflows/reusable-node-verify.yml@v1
+#       with:
+#         command: npm run lint && npm run type-check && npm test && npm run build
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint, Type-check & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm # switch to pnpm for pnpm repos (also swap install below)
+      - name: Install dependencies
+        run: npm ci
+        env:
+          HUSKY: 0
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run type-check
+      - name: Format check
+        run: npm run format:check
+      - name: Tests with coverage
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  # --- Python variant (replace the quality job with this for Python projects) ---
+  # test:
+  #   name: pytest (Python ${{ matrix.python-version }})
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       python-version: ["3.10", "3.13"]
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - uses: actions/setup-python@v6
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
+  #     - run: pip install -e ".[dev]"
+  #     - run: pytest

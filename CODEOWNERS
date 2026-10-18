@@ -1,0 +1,4 @@
+# Default reviewer for all changes. Adjust per-path as the project grows, e.g.:
+#   /src/api/    @and3rn3t
+#   *.yml        @and3rn3t
+* @and3rn3t

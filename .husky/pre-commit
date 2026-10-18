@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# Pre-commit gates:
+#   1. lint-staged — auto-fix lint/format on staged files
+#   2. gitleaks — secret scan (skipped silently if not installed; CI is the hard gate)
+# Bypass: `git commit --no-verify`. Pre-push still runs the validate gate.
+
+npx --no-install lint-staged
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner
+else
+  echo "[pre-commit] gitleaks not installed — skipping secret scan. 'brew install gitleaks' to enable." >&2
+fi

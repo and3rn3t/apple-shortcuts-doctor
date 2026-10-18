@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Run the full validate gate before anything leaves the machine.
+# TODO: point at your repo's gate (pnpm validate / npm run validate).
+npm run validate

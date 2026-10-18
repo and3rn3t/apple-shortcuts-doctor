@@ -1,0 +1,26 @@
+{
+  // Recommended extensions for this workspace.
+  // VS Code will prompt contributors to install these.
+  // Docs: https://code.visualstudio.com/docs/editor/extension-marketplace#_workspace-recommended-extensions
+  "recommendations": [
+    // AI-assisted development
+    "github.copilot",
+    "github.copilot-chat",
+
+    // Editor essentials
+    "editorconfig.editorconfig",
+    "eamodio.gitlens",
+
+    // TODO: Swap these for your stack's linter/formatter extensions
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode"
+  ]
+
+  // Uncomment alternatives that match your stack:
+  // "recommendations": [
+  //   "ms-python.python",           // Python
+  //   "golang.go",                  // Go
+  //   "rust-lang.rust-analyzer",    // Rust
+  //   "ms-azuretools.vscode-docker" // Docker
+  // ]
+}

@@ -1,0 +1,35 @@
+{
+  // Workspace settings — these apply to everyone who opens this project.
+  // TODO: Adjust these defaults for your team's conventions.
+  // Individual developers can override in their User settings.
+
+  // Formatting
+  "editor.formatOnSave": true,
+  // TODO: Change the default formatter if you don't use Prettier
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // Whitespace
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // Visual guides at common line-length limits
+  "editor.rulers": [80, 120]
+
+  // -------------------------------------------------------------------
+  // Optional — uncomment and customize as needed
+  // -------------------------------------------------------------------
+
+  // Hide noisy directories from search results
+  // "search.exclude": {
+  //   "**/node_modules": true,
+  //   "**/dist": true,
+  //   "**/coverage": true
+  // },
+
+  // Hide generated files from the explorer
+  // "files.exclude": {
+  //   "**/.git": true,
+  //   "**/node_modules": true,
+  //   "**/dist": true
+  // }
+}
