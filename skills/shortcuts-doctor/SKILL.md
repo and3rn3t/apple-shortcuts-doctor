@@ -54,10 +54,14 @@ converted to JSON are not supported. Do not bypass signatures or restrictions.
    import { execFileSync } from 'node:child_process';
    import { join } from 'node:path';
 
-   execFileSync('node', [join(baseDir, 'scripts', 'inspect-shortcut.mjs'), '--', approvedExportPath], {
-     shell: false,
-     stdio: 'inherit',
-   });
+   execFileSync(
+     'node',
+     [join(baseDir, 'scripts', 'inspect-shortcut.mjs'), '--', approvedExportPath],
+     {
+       shell: false,
+       stdio: 'inherit',
+     }
+   );
    ```
 
    `baseDir` is OpenClaw's resolved directory for this installed skill, not
