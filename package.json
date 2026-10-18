@@ -1,5 +1,5 @@
 {
-  "name": "shortcuts-doctor",
+  "name": "shortcuts-doctor-workspace",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.28.6",
@@ -7,9 +7,33 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "vitest run"
+    "build": "pnpm build:skill",
+    "build:skill": "node scripts/build-skill.mjs",
+    "build:skill:check": "node scripts/build-skill.mjs --check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "tsc -p packages/core && tsc -p packages/cli && tsc -p .",
+    "validate": "pnpm lint && pnpm format:check && pnpm type-check && pnpm test:coverage && pnpm build:skill:check",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "vitest": "^5.0.3"
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
   }
 }

@@ -4,7 +4,7 @@
 #   2. gitleaks — secret scan (skipped silently if not installed; CI is the hard gate)
 # Bypass: `git commit --no-verify`. Pre-push still runs the validate gate.
 
-npx --no-install lint-staged
+pnpm exec lint-staged
 
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks protect --staged --redact --no-banner

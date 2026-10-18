@@ -1,0 +1,11 @@
+{
+  // Tests, scripts, and tooling. Package sources are checked by their own tsconfig.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": ["packages/*/test", "tests", "scripts", "*.config.ts"]
+}
