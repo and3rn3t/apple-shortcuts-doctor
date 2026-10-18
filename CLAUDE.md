@@ -7,8 +7,4 @@
 - Don't commit, push, or deploy unless explicitly asked.
 - Prefer `pnpm` commands exactly as listed in AGENTS.md; don't substitute npm.
 - When a Cloudflare MCP connector is available (Cowork sessions), prefer it for inspecting Workers/KV/R2/D1 over guessing from config files.
-- Run `pnpm lint && pnpm type-check && pnpm test` before declaring a change done.
-
-## Project Overview
-
-<!-- Describe your project here, or leave to AGENTS.md -->
+- Run `pnpm validate` before declaring a change done (lint, format, types, tests, skill bundle drift).

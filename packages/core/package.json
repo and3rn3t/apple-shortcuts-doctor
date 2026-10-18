@@ -1,0 +1,11 @@
+{
+  "name": "@shortcuts-doctor/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-safe static inspection engine for Apple Shortcut exports.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": false
+}

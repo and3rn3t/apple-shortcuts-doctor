@@ -1,13 +1,4 @@
-# Node.js test pipeline for the standalone skill.
-# Python variant at the bottom — swap the jobs if this is a Python project.
-#
-# Shorter alternative — call the shared reusable workflow instead:
-#   jobs:
-#     quality:
-#       uses: and3rn3t/.github/.github/workflows/reusable-node-verify.yml@v1
-#       with:
-#         command: pnpm test
-
+# Quality gate: lint, format, type-check, tests, and skill bundle drift.
 name: CI
 
 on:
@@ -25,10 +16,15 @@ permissions:
   contents: read
 
 jobs:
-  quality:
-    name: Tests
-    runs-on: ubuntu-latest
+  validate:
+    name: Validate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS exercises the real /usr/bin/plutil plist path.
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
@@ -42,22 +38,18 @@ jobs:
         run: pnpm install --frozen-lockfile
         env:
           HUSKY: 0
-      - name: Tests
-        run: pnpm test
+      - name: Validate
+        run: pnpm validate
 
-  # --- Python variant (replace the quality job with this for Python projects) ---
-  # test:
-  #   name: pytest (Python ${{ matrix.python-version }})
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       python-version: ["3.10", "3.13"]
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #     - uses: actions/setup-python@v6
-  #       with:
-  #         python-version: ${{ matrix.python-version }}
-  #     - run: pip install -e ".[dev]"
-  #     - run: pytest
+  skill-runtime:
+    # The bundled skill promises Node 22 support; run it there without dev dependencies.
+    name: Skill on Node 22
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Inspect fixture with the standalone script
+        run: node skills/shortcuts-doctor/scripts/inspect-shortcut.mjs -- tests/fixtures/mixed-actions.json

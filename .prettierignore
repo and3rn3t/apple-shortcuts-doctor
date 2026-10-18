@@ -1,0 +1,13 @@
+pnpm-lock.yaml
+coverage/
+dist/
+skills/shortcuts-doctor/scripts/inspect-shortcut.mjs
+tests/fixtures/
+
+# Template-provided AI assistant content; kept as authored upstream.
+.github/agents/
+.github/instructions/
+.github/prompts/
+.github/skills/
+docs/AI-CUSTOMIZATION-GUIDE.md
+CODE_OF_CONDUCT.md

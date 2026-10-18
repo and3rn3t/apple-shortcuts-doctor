@@ -1,0 +1,13 @@
+{
+  "WFWorkflowName": "Fixture: mixed actions",
+  "WFWorkflowActions": [
+    { "WFWorkflowActionIdentifier": "is.workflow.actions.getclipboard", "WFWorkflowActionParameters": { "UUID": "A1" } },
+    { "WFWorkflowActionIdentifier": "is.workflow.actions.gettext", "WFWorkflowActionParameters": { "UUID": "A2", "WFTextActionText": { "Value": { "attachmentsByRange": { "{0, 1}": { "OutputUUID": "A1", "Type": "ActionOutput" } } } } } },
+    { "WFWorkflowActionIdentifier": "is.workflow.actions.downloadurl", "WFWorkflowActionParameters": { "UUID": "A3", "WFURL": "https://example.invalid/fixture", "WFHTTPMethod": "POST", "WFInput": { "Value": { "OutputUUID": "A2", "Type": "ActionOutput" } } } },
+    { "WFWorkflowActionIdentifier": "is.workflow.actions.runshellscript", "WFWorkflowActionParameters": { "Script": "echo fixture" } },
+    { "WFWorkflowActionIdentifier": "com.example.fixture.intent", "WFWorkflowActionParameters": { "Value": { "OutputUUID": "missing" } } },
+    { "WFWorkflowActionIdentifier": "is.workflow.actions.text", "WFWorkflowActionParameters": { "UUID": "A3" } },
+    { "WFWorkflowActionIdentifier": "is.workflow.actions.deletefiles" },
+    { "WFWorkflowActionIdentifier": "is.workflow.actions.runworkflow", "WFWorkflowActionParameters": { "WFInput": { "OutputUUID": "A3" } } }
+  ]
+}

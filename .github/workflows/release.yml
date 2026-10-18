@@ -1,18 +1,18 @@
 # Release workflow — creates a GitHub Release when a version tag is pushed.
 #
 # Usage:
-#   git tag v1.0.0
-#   git push origin v1.0.0
+#   git tag v0.1.0
+#   git push origin v0.1.0
 #
-# TODO: Customize the release body, add build artifacts, or enable publishing
-# to a package registry (see commented-out sections below).
+# Attaches the installable skill directory as a zip. npm publishing of the CLI
+# is planned for roadmap milestone M1.
 
 name: Release
 
 on:
   push:
     tags:
-      - "v*.*.*"
+      - 'v*.*.*'
 
 permissions:
   contents: write
@@ -26,47 +26,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - uses: pnpm/action-setup@v4.2.0
+        with:
+          standalone: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: 0
+      - name: Validate
+        run: pnpm validate
+
+      - name: Package skill
+        run: |
+          mkdir -p dist
+          (cd skills && zip -r "../dist/shortcuts-doctor-skill-${GITHUB_REF_NAME}.zip" shortcuts-doctor)
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          # TODO: Uncomment to attach build artifacts
-          # files: |
-          #   dist/*.tar.gz
-          #   dist/*.zip
-
-  # -------------------------------------------------------------------
-  # Publish to a package registry (uncomment the job for your ecosystem)
-  # -------------------------------------------------------------------
-
-  # publish-npm:
-  #   name: Publish to npm
-  #   runs-on: ubuntu-latest
-  #   needs: release
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: 20
-  #         registry-url: "https://registry.npmjs.org"
-  #     - run: npm ci
-  #     - run: npm publish
-  #       env:
-  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  # publish-pypi:
-  #   name: Publish to PyPI
-  #   runs-on: ubuntu-latest
-  #   needs: release
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: "3.12"
-  #     - run: pip install build twine
-  #     - run: python -m build
-  #     - run: twine upload dist/*
-  #       env:
-  #         TWINE_USERNAME: __token__
-  #         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          files: dist/shortcuts-doctor-skill-*.zip
