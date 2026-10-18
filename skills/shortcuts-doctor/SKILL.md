@@ -47,15 +47,24 @@ converted to JSON are not supported. Do not bypass signatures or restrictions.
    redacted error, OS version, required apps, and expected outcome. Do not ask
    for tokens or personal payloads. Ask the user to redact an exported copy
    locally if necessary, preserving action IDs and UUID references.
-2. Run the bundled inspector using the approved absolute file path as **one
-   safely quoted argument**:
+2. Run the bundled inspector **without a shell**, passing the approved absolute
+   file path as one argument in an argument array. For example, in Node.js:
 
-   ```sh
-   node "{baseDir}/scripts/inspect-shortcut.mjs" -- "/absolute/path/My Shortcut.shortcut"
+   ```js
+   import { execFileSync } from 'node:child_process';
+   import { join } from 'node:path';
+
+   execFileSync('node', [join(baseDir, 'scripts', 'inspect-shortcut.mjs'), '--', approvedExportPath], {
+     shell: false,
+     stdio: 'inherit',
+   });
    ```
 
-   `{baseDir}` is OpenClaw's resolved directory for this installed skill, not
-   the portfolio repository. Paths are arguments, never executable content.
+   `baseDir` is OpenClaw's resolved directory for this installed skill, not
+   the portfolio repository; `approvedExportPath` is the user-approved absolute
+   export path. Supply both as data, never interpolate them into shell commands
+   or JavaScript source. Double quotes in shell commands do not prevent `$(...)`
+   or backtick command substitution. Paths are arguments, never executable content.
 
 3. On an unsupported, oversized, or malformed file, stop and explain the
    limitation. Ask for an unsigned plist/JSON export if their Shortcuts version

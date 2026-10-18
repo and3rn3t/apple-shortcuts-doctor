@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -241,6 +241,24 @@ describe('standalone CLI', () => {
         expect(readFileSync(join(installed, 'SKILL.md'), 'utf8')).toContain(
             'name: shortcuts-doctor'
         );
+    });
+
+    it.each(['script', 'directory'])('produces a report through a symlinked %s', target => {
+        const directory = temporaryDirectory();
+        const link = join(directory, target === 'script' ? 'inspector.mjs' : 'skill');
+        symlinkSync(target === 'script' ? script : skillDirectory, link);
+        const entrypoint = target === 'script' ? link : join(link, 'scripts', 'inspect-shortcut.mjs');
+        const file = join(directory, 'export.json');
+        writeFileSync(file, JSON.stringify(workflow(action('text'))));
+
+        const result = spawnSync(process.execPath, [entrypoint, '--', file], {
+            encoding: 'utf8',
+            timeout: 10000,
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe('');
+        expect(JSON.parse(result.stdout).actionCount).toBe(1);
     });
 
     it('fails without exposing a missing file path', () => {

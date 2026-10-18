@@ -1,7 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { closeSync, constants, fstatSync, openSync, readSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { closeSync, constants, fstatSync, openSync, readSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 export const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_ACTIONS = 2000;
@@ -256,4 +255,7 @@ function main() {
   }
 }
 
-if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) main();
+if (
+  process.argv[1] &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+) main();
