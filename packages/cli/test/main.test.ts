@@ -53,6 +53,20 @@ describe('main', () => {
     expect(output(stderr)).toBe('');
   });
 
+  it.each([
+    ['text', 'Shortcuts Doctor:'],
+    ['md', '# Shortcuts Doctor report'],
+  ])('renders --format %s', (format, expected) => {
+    const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+    expect(main(['--format', format, '--', file])).toBe(0);
+    expect(output(stdout)).toContain(expected);
+  });
+
+  it('rejects unknown formats', () => {
+    expect(main(['--format', 'xml', 'x'])).toBe(1);
+    expect(output(stdout)).toContain('Usage:');
+  });
+
   it.each([[[]], [['a', 'b']], [['--']]])('prints usage and fails for %j', args => {
     expect(main(args)).toBe(1);
     expect(output(stdout)).toContain('Usage:');

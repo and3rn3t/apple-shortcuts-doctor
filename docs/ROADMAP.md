@@ -10,10 +10,10 @@ default, no network. An item that can't meet this is redesigned or dropped.
 
 > Keep this block small: at most 1–2 items in progress and 1–2 up next.
 
-| Status     | Item                                              | Notes                      |
-| ---------- | ------------------------------------------------- | -------------------------- |
-| ⬜ up next | M1.1 Human-readable text + Markdown report output | First user-visible CLI win |
-| ⬜ up next | M1.2 Versioned report schema (`formatVersion: 2`) | Unblocks web app + diff    |
+| Status         | Item                                              | Notes                         |
+| -------------- | ------------------------------------------------- | ----------------------------- |
+| 🟡 in progress | M1.1 Human-readable text + Markdown report output | Renderers in core; PR pending |
+| ⬜ up next     | M1.2 Versioned report schema (`formatVersion: 2`) | Unblocks web app + diff       |
 
 ## Wave Sequence
 
@@ -21,7 +21,7 @@ default, no network. An item that can't meet this is redesigned or dropped.
 
 | Status | Item                                                                                        | Notes                                                |
 | ------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| ⬜     | M1.1 `--format text\|json\|md`; text is default for a TTY, JSON when piped/for the skill    | Renderers live in core so the web app reuses them    |
+| 🟡     | M1.1 `--format text\|json\|md`; text is default for a TTY, JSON when piped/for the skill    | Renderers live in core so the web app reuses them    |
 | ⬜     | M1.2 Report schema v2 + published JSON Schema (`schema/report.v2.json`)                     | Keep v1 output available behind `--format-version 1` |
 | ⬜     | M1.3 `shortcuts-doctor inspect <file>` subcommand + `bin` entry                             | Skill script keeps its current argv contract         |
 | ⬜     | M1.4 `--fail-on review\|warning` exit codes; `--quiet`                                      | For CI use on repos that version Shortcuts           |

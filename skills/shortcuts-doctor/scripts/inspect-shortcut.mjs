@@ -231,6 +231,79 @@ function parseExport(bytes, options = {}) {
   }
 }
 
+// packages/core/src/render.ts
+function sanitizeIdentifier(identifier) {
+  const shortened = identifier.startsWith(ACTION_PREFIX) ? identifier.slice(ACTION_PREFIX.length) : identifier;
+  return shortened.replace(/[^\x20-\x7e]/g, "?");
+}
+function markdownCode(text) {
+  return `\`${text.replaceAll("`", "'")}\``;
+}
+function actionLine(action, label) {
+  const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(", #")}` : "";
+  const unresolved = action.unresolvedReferenceCount ? ` (${action.unresolvedReferenceCount} unresolved reference(s))` : "";
+  return `${action.index}. ${label(sanitizeIdentifier(action.identifier))} [${action.category}]${depends}${unresolved}`;
+}
+function findingLine(finding) {
+  const targets = finding.actions.map((index) => `#${index}`).join(", ");
+  return `${finding.severity.toUpperCase()} ${finding.code} (${targets}): ${finding.message}`;
+}
+function section(title, lines, empty) {
+  return [title, ...lines.length ? lines : [empty]];
+}
+function renderText(report) {
+  const lines = [
+    `Shortcuts Doctor: ${report.actionCount} action(s), ${report.findings.length} finding(s)`,
+    "",
+    ...section(
+      "Actions",
+      report.actions.map((action) => actionLine(action, (text) => text)),
+      "(none)"
+    ),
+    "",
+    ...section(
+      "Findings",
+      report.findings.map(findingLine),
+      "(none; this is not a safety verdict)"
+    ),
+    "",
+    "Limitations",
+    ...report.limitations.map((limitation) => `- ${limitation}`)
+  ];
+  return `${lines.join("\n")}
+`;
+}
+function renderMarkdown(report) {
+  const lines = [
+    "# Shortcuts Doctor report",
+    "",
+    `${report.actionCount} action(s), ${report.findings.length} finding(s).`,
+    "",
+    ...section(
+      "## Actions",
+      report.actions.map((action) => actionLine(action, markdownCode)),
+      "_None._"
+    ),
+    "",
+    ...section(
+      "## Findings",
+      report.findings.map((finding) => `- ${findingLine(finding)}`),
+      "_None. This is not a safety verdict._"
+    ),
+    "",
+    "## Limitations",
+    ...report.limitations.map((limitation) => `- ${limitation}`)
+  ];
+  return `${lines.join("\n")}
+`;
+}
+function renderReport(report, format) {
+  if (format === "text") return renderText(report);
+  if (format === "md") return renderMarkdown(report);
+  return `${JSON.stringify(report, null, 2)}
+`;
+}
+
 // packages/cli/src/plutil.ts
 import { execFileSync } from "node:child_process";
 var PLUTIL_PATH = "/usr/bin/plutil";
@@ -270,20 +343,40 @@ function readExport(file) {
 }
 
 // packages/cli/src/main.ts
-var USAGE = 'Usage: node inspect-shortcut.mjs -- "/absolute/path/export.shortcut"\n';
+var USAGE = 'Usage: node inspect-shortcut.mjs [--format text|json|md] -- "/absolute/path/export.shortcut"\n';
+var FORMATS = ["text", "json", "md"];
 function hasErrorCode(error) {
   return error instanceof Error && "code" in error && Boolean(error.code);
 }
+function defaultFormat() {
+  return process.stdout.isTTY ? "text" : "json";
+}
+function parseArgs(argv) {
+  const parsed = { format: defaultFormat(), files: [], help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--") {
+      parsed.files.push(...argv.slice(i + 1));
+      break;
+    }
+    if (arg === "--help") parsed.help = true;
+    else if (arg === "--format") {
+      const value = argv[++i];
+      if (value === void 0 || !FORMATS.includes(value)) return void 0;
+      parsed.format = value;
+    } else parsed.files.push(arg);
+  }
+  return parsed;
+}
 function main(argv) {
-  const args = argv[0] === "--" ? argv.slice(1) : [...argv];
-  if (args.length !== 1 || args[0] === "--help") {
+  const args = parseArgs(argv);
+  if (!args || args.help || args.files.length !== 1) {
     process.stdout.write(USAGE);
-    return args[0] === "--help" ? 0 : 1;
+    return args?.help ? 0 : 1;
   }
   try {
-    const report = inspectWorkflow(parseExport2(readExport(args[0])));
-    process.stdout.write(`${JSON.stringify(report, null, 2)}
-`);
+    const report = inspectWorkflow(parseExport2(readExport(args.files[0])));
+    process.stdout.write(renderReport(report, args.format));
     return 0;
   } catch (error) {
     const message = hasErrorCode(error) ? "Cannot read the supplied export file." : error.message;

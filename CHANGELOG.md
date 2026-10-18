@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `--format text|json|md` with core renderers (`renderText`, `renderMarkdown`, `renderReport`).
+  Text is the default on a TTY; JSON when piped, so the skill's output is unchanged.
 - ESLint, Prettier, `tsc` type-check, coverage thresholds, husky + lint-staged + commitlint.
 - `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, ADR-0001.
 
