@@ -54,7 +54,7 @@ pnpm lint               # eslint
 pnpm format             # prettier --write
 pnpm type-check         # tsc per package + tests
 pnpm build:skill        # regenerate the skill bundle
-pnpm validate           # lint + format:check + type-check + test + bundle drift (pre-push and CI)
+pnpm validate           # lint + format:check + type-check + test:coverage + bundle drift (pre-push and CI)
 ```
 
 **After changing anything under `packages/*/src`, run `pnpm build:skill` and commit the
