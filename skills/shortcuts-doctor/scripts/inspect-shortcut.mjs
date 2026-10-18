@@ -88,10 +88,11 @@ function validateWorkflow(workflow) {
   if (!isRecord(workflow) || !Array.isArray(workflow.WFWorkflowActions)) {
     throw new Error("Expected a workflow dictionary containing WFWorkflowActions.");
   }
-  const rawActions = workflow.WFWorkflowActions;
-  if (rawActions.length > MAX_ACTIONS) {
+  const declaredActions = workflow.WFWorkflowActions;
+  if (declaredActions.length > MAX_ACTIONS) {
     throw new Error("Export exceeds the 2000 action inspection limit.");
   }
+  const rawActions = Array.from(declaredActions);
   if (!rawActions.every(isValidAction)) {
     throw new Error(
       "Malformed action identifier or parameters. No partial inspection was produced."

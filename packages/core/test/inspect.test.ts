@@ -121,6 +121,15 @@ describe('workflow inspection', () => {
     expect(() => inspectWorkflow(workflow(action('text'), input))).toThrow('No partial inspection');
   });
 
+  it('rejects sparse action arrays instead of skipping holes', () => {
+    // eslint-disable-next-line no-sparse-arrays
+    for (const actions of [new Array(1), [action('text'), , action('text')]]) {
+      expect(() => inspectWorkflow({ WFWorkflowActions: actions })).toThrow(
+        'No partial inspection'
+      );
+    }
+  });
+
   it('limits the action count', () => {
     expect(() => inspectWorkflow(workflow(...Array(2001).fill(action('text'))))).toThrow('2000');
   });

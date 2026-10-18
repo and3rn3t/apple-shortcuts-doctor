@@ -41,10 +41,12 @@ function validateWorkflow(workflow: unknown): RawAction[] {
   if (!isRecord(workflow) || !Array.isArray(workflow.WFWorkflowActions)) {
     throw new Error('Expected a workflow dictionary containing WFWorkflowActions.');
   }
-  const rawActions: unknown[] = workflow.WFWorkflowActions;
-  if (rawActions.length > MAX_ACTIONS) {
+  const declaredActions: unknown[] = workflow.WFWorkflowActions;
+  if (declaredActions.length > MAX_ACTIONS) {
     throw new Error('Export exceeds the 2000 action inspection limit.');
   }
+  // Array.from turns holes into undefined; every() and map() would silently skip them.
+  const rawActions = Array.from(declaredActions);
   if (!rawActions.every(isValidAction)) {
     throw new Error(
       'Malformed action identifier or parameters. No partial inspection was produced.'
