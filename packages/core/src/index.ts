@@ -1,4 +1,4 @@
-export { inspectWorkflow, LIMITATIONS, MAX_ACTIONS } from './inspect.ts';
+export { inspectWorkflow, LIMITATIONS, MAX_ACTIONS, toReportV1 } from './inspect.ts';
 export { MAX_BYTES, parseExport } from './parse.ts';
 export type { ParseOptions } from './parse.ts';
 export { renderMarkdown, renderReport, renderText } from './render.ts';

@@ -1,5 +1,13 @@
-import { BASIC_ACTIONS, RULES } from './rules.ts';
-import type { Finding, InspectedAction, Report } from './types.ts';
+import { ACTION_PREFIX, BASIC_ACTIONS, RULES } from './rules.ts';
+import type {
+  ActionCategory,
+  Finding,
+  InspectedAction,
+  Report,
+  ReportSummary,
+  ReportV1,
+  Severity,
+} from './types.ts';
 
 export const MAX_ACTIONS = 2000;
 const ACTION_IDENTIFIER_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/i;
@@ -73,6 +81,7 @@ function duplicateOutputFindings(uuidIndexes: Map<string, number[]>): Finding[] 
     .filter(indexes => indexes.length > 1)
     .map(indexes => ({
       code: 'duplicate-output',
+      ruleId: 'duplicate-output',
       severity: 'warning',
       actions: indexes,
       message: 'Multiple actions declare the same output UUID; references are ambiguous.',
@@ -113,6 +122,7 @@ function classificationFinding(identifier: string, position: number): Finding | 
   if (!rule) {
     return {
       code: 'unknown-action',
+      ruleId: 'unknown-action',
       severity: 'review',
       actions: [position],
       message:
@@ -122,6 +132,7 @@ function classificationFinding(identifier: string, position: number): Finding | 
   const isHighRisk = rule.category === 'code-execution' || rule.category === 'destructive';
   return {
     code: rule.category,
+    ruleId: identifier.slice(ACTION_PREFIX.length),
     severity: isHighRisk ? 'warning' : 'review',
     actions: [position],
     message: rule.message,
@@ -131,10 +142,43 @@ function classificationFinding(identifier: string, position: number): Finding | 
 function unresolvedReferenceFinding(position: number): Finding {
   return {
     code: 'unresolved-reference',
+    ruleId: 'unresolved-reference',
     severity: 'warning',
     actions: [position],
     message:
       'An output reference is missing, ambiguous, or not from an earlier action. Verify it in Shortcuts.',
+  };
+}
+
+function summarize(actions: InspectedAction[], findings: Finding[]): ReportSummary {
+  const findingsBySeverity: Record<Severity, number> = { review: 0, warning: 0 };
+  for (const finding of findings) findingsBySeverity[finding.severity]++;
+  const actionsByCategory: Record<ActionCategory, number> = {
+    'sensitive-input': 0,
+    outbound: 0,
+    'code-execution': 0,
+    destructive: 0,
+    dependency: 0,
+    basic: 0,
+    unknown: 0,
+  };
+  for (const action of actions) actionsByCategory[action.category]++;
+  return { findingsBySeverity, actionsByCategory };
+}
+
+/** Downgrades a report to the legacy v1 shape. */
+export function toReportV1(report: Report): ReportV1 {
+  return {
+    formatVersion: 1,
+    actionCount: report.actionCount,
+    actions: report.actions,
+    findings: report.findings.map(finding => ({
+      code: finding.code,
+      severity: finding.severity,
+      actions: finding.actions,
+      message: finding.message,
+    })),
+    limitations: report.limitations,
   };
 }
 
@@ -168,8 +212,9 @@ export function inspectWorkflow(workflow: unknown): Report {
     };
   });
   return {
-    formatVersion: 1,
+    formatVersion: 2,
     actionCount: actions.length,
+    summary: summarize(actions, findings),
     actions,
     findings,
     limitations: [...LIMITATIONS],

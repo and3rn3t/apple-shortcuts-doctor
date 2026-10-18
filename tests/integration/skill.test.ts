@@ -95,6 +95,14 @@ describe('standalone skill bundle', () => {
     expect(result.stdout).not.toContain('private body');
   });
 
+  it('emits v2 by default and v1 on request', () => {
+    const file = join(temporaryDirectory(), 'export.json');
+    writeFileSync(file, JSON.stringify(workflow()));
+    expect(JSON.parse(run(['--', file]).stdout).formatVersion).toBe(2);
+    const legacy = run(['--format-version', '1', '--', file]);
+    expect(JSON.parse(legacy.stdout).formatVersion).toBe(1);
+  });
+
   it('defaults to JSON when piped', () => {
     const file = join(temporaryDirectory(), 'export.json');
     writeFileSync(file, JSON.stringify(workflow()));

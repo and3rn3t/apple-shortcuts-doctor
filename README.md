@@ -50,7 +50,7 @@ npm install. [SKILL.md](skills/shortcuts-doctor/SKILL.md) covers the workflow an
 node skills/shortcuts-doctor/scripts/inspect-shortcut.mjs -- /absolute/path/export.json
 ```
 
-Output is a JSON report on stdout. Exit code `1` means the file was unreadable, unsupported, or
+Output is a JSON report on stdout (`--format text|json|md`; text is the default on a terminal; `--format-version 1` selects the legacy JSON shape; schema in `schema/report.v2.json`). Exit code `1` means the file was unreadable, unsupported, or
 malformed. Plist exports need macOS (`/usr/bin/plutil`); JSON works anywhere.
 
 ## Development
