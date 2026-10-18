@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `--fail-on review|warning` (exit code 2 when findings reach the threshold) and `--quiet`,
+  for CI use. Exit code 1 still means usage or input errors.
 - `shortcuts-doctor inspect <file>` subcommand and a `bin` entry in `packages/cli`. The bare
   `inspect-shortcut.mjs -- <file>` form used by the skill is unchanged. (The bin runs TypeScript
   source in the workspace; publishable output arrives with M1.5.)
