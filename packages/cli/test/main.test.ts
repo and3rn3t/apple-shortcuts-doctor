@@ -102,6 +102,22 @@ describe('main', () => {
     expect(output(stdout)).toContain('Usage:');
   });
 
+  it('accepts the inspect subcommand with flags', () => {
+    const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+    expect(main(['inspect', '--format', 'md', file])).toBe(0);
+    expect(output(stdout)).toContain('# Shortcuts Doctor report');
+  });
+
+  it('treats inspect after -- as a file name, not a subcommand', () => {
+    expect(main(['--', 'inspect'])).toBe(1);
+    expect(output(stderr)).toContain('Cannot read');
+  });
+
+  it('requires a file for the inspect subcommand', () => {
+    expect(main(['inspect'])).toBe(1);
+    expect(output(stdout)).toContain('Usage:');
+  });
+
   it('rejects unknown formats', () => {
     expect(main(['--format', 'xml', 'x'])).toBe(1);
     expect(output(stdout)).toContain('Usage:');

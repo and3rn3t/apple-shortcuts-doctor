@@ -3,8 +3,11 @@ import type { ReportFormat } from '@shortcuts-doctor/core';
 import { parseExport } from './plutil.ts';
 import { readExport } from './read-export.ts';
 
-const USAGE =
-  'Usage: node inspect-shortcut.mjs [--format text|json|md] [--format-version 1|2] -- "/absolute/path/export.shortcut"\n';
+const USAGE = [
+  'Usage: shortcuts-doctor inspect [--format text|json|md] [--format-version 1|2] <export-file>',
+  '       node inspect-shortcut.mjs [--format text|json|md] [--format-version 1|2] -- <export-file>',
+  '',
+].join('\n');
 const FORMATS: readonly string[] = ['text', 'json', 'md'];
 
 interface ParsedArgs {
@@ -23,7 +26,13 @@ function defaultFormat(): ReportFormat {
   return process.stdout.isTTY ? 'text' : 'json';
 }
 
-function parseArgs(argv: string[]): ParsedArgs | undefined {
+/** `inspect` is the named subcommand; the bare form stays for the skill's argv contract. */
+function stripSubcommand(argv: string[]): string[] {
+  return argv[0] === 'inspect' ? argv.slice(1) : argv;
+}
+
+function parseArgs(rawArgv: string[]): ParsedArgs | undefined {
+  const argv = stripSubcommand(rawArgv);
   const parsed: ParsedArgs = { format: defaultFormat(), formatVersion: 2, files: [], help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] as string;

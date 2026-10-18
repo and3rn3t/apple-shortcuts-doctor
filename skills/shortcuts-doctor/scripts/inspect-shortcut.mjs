@@ -377,7 +377,11 @@ function readExport(file) {
 }
 
 // packages/cli/src/main.ts
-var USAGE = 'Usage: node inspect-shortcut.mjs [--format text|json|md] [--format-version 1|2] -- "/absolute/path/export.shortcut"\n';
+var USAGE = [
+  "Usage: shortcuts-doctor inspect [--format text|json|md] [--format-version 1|2] <export-file>",
+  "       node inspect-shortcut.mjs [--format text|json|md] [--format-version 1|2] -- <export-file>",
+  ""
+].join("\n");
 var FORMATS = ["text", "json", "md"];
 function hasErrorCode(error) {
   return error instanceof Error && "code" in error && Boolean(error.code);
@@ -385,7 +389,11 @@ function hasErrorCode(error) {
 function defaultFormat() {
   return process.stdout.isTTY ? "text" : "json";
 }
-function parseArgs(argv) {
+function stripSubcommand(argv) {
+  return argv[0] === "inspect" ? argv.slice(1) : argv;
+}
+function parseArgs(rawArgv) {
+  const argv = stripSubcommand(rawArgv);
   const parsed = { format: defaultFormat(), formatVersion: 2, files: [], help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
