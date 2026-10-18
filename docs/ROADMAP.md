@@ -10,10 +10,10 @@ default, no network. An item that can't meet this is redesigned or dropped.
 
 > Keep this block small: at most 1–2 items in progress and 1–2 up next.
 
-| Status         | Item                                              | Notes                         |
-| -------------- | ------------------------------------------------- | ----------------------------- |
-| 🟡 in progress | M1.2 Versioned report schema (`formatVersion: 2`) | Unblocks web app + diff       |
-| ⬜ up next     | M1.3 `inspect` subcommand + `bin` entry           | Skill keeps its argv contract |
+| Status         | Item                                    | Notes                         |
+| -------------- | --------------------------------------- | ----------------------------- |
+| 🟡 in progress | M1.3 `inspect` subcommand + `bin` entry | Skill keeps its argv contract |
+| ⬜ up next     | M1.4 `--fail-on` exit codes; `--quiet`  | For CI use                    |
 
 ## Wave Sequence
 
@@ -22,8 +22,8 @@ default, no network. An item that can't meet this is redesigned or dropped.
 | Status        | Item                                                                                        | Notes                                                |
 | ------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | ✅ 2026-10-18 | M1.1 `--format text\|json\|md`; text is default for a TTY, JSON when piped/for the skill    | Renderers live in core so the web app reuses them    |
-| 🟡            | M1.2 Report schema v2 + published JSON Schema (`schema/report.v2.json`)                     | Keep v1 output available behind `--format-version 1` |
-| ⬜            | M1.3 `shortcuts-doctor inspect <file>` subcommand + `bin` entry                             | Skill script keeps its current argv contract         |
+| ✅ 2026-10-18 | M1.2 Report schema v2 + published JSON Schema (`schema/report.v2.json`)                     | Keep v1 output available behind `--format-version 1` |
+| 🟡            | M1.3 `shortcuts-doctor inspect <file>` subcommand + `bin` entry                             | Skill script keeps its current argv contract         |
 | ⬜            | M1.4 `--fail-on review\|warning` exit codes; `--quiet`                                      | For CI use on repos that version Shortcuts           |
 | ⬜            | M1.5 Publish `shortcuts-doctor` to npm with provenance; enable `publish-npm` in release.yml | Needs `NPM_TOKEN` or trusted publishing              |
 
@@ -96,3 +96,4 @@ default, no network. An item that can't meet this is redesigned or dropped.
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | ✅ 2026-10-18 | M0 Foundation: TS core + CLI packages, generated skill bundle with drift check, lint/format/type/test gates, CI on Linux + macOS, docs |
 | ✅ 2026-10-18 | M1.1 `--format text\|json\|md` with renderers in core (PR #9)                                                                          |
+| ✅ 2026-10-18 | M1.2 Report `formatVersion: 2` + `schema/report.v2.json` (PR #11)                                                                      |

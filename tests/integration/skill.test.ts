@@ -103,6 +103,18 @@ describe('standalone skill bundle', () => {
     expect(JSON.parse(legacy.stdout).formatVersion).toBe(1);
   });
 
+  it('runs the bin entry as the inspect subcommand', () => {
+    const file = join(temporaryDirectory(), 'export.json');
+    writeFileSync(file, JSON.stringify(workflow(action('sendemail', { Body: 'private body' }))));
+    const bin = fileURLToPath(
+      new URL('../../packages/cli/bin/shortcuts-doctor.mjs', import.meta.url)
+    );
+    const result = run(['inspect', '--format', 'md', file], bin);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('# Shortcuts Doctor report');
+    expect(result.stdout).not.toContain('private body');
+  });
+
   it('defaults to JSON when piped', () => {
     const file = join(temporaryDirectory(), 'export.json');
     writeFileSync(file, JSON.stringify(workflow()));

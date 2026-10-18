@@ -7,6 +7,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "bin": {
+    "shortcuts-doctor": "./bin/shortcuts-doctor.mjs"
+  },
   "engines": {
     "node": ">=22"
   },
