@@ -54,6 +54,33 @@ describe('main', () => {
   });
 
   it.each([
+    [true, 'Shortcuts Doctor:'],
+    [false, '"formatVersion"'],
+  ])('defaults by terminal state (isTTY=%s)', (isTTY, expected) => {
+    const original = process.stdout.isTTY;
+    process.stdout.isTTY = isTTY;
+    try {
+      const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+      expect(main(['--', file])).toBe(0);
+      expect(output(stdout)).toContain(expected);
+    } finally {
+      process.stdout.isTTY = original;
+    }
+  });
+
+  it('lets --format json override the terminal default', () => {
+    const original = process.stdout.isTTY;
+    process.stdout.isTTY = true;
+    try {
+      const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+      expect(main(['--format', 'json', '--', file])).toBe(0);
+      expect(JSON.parse(output(stdout)).actionCount).toBe(0);
+    } finally {
+      process.stdout.isTTY = original;
+    }
+  });
+
+  it.each([
     ['text', 'Shortcuts Doctor:'],
     ['md', '# Shortcuts Doctor report'],
   ])('renders --format %s', (format, expected) => {
