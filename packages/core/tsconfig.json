@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Browser-safe: no Node.js globals or modules.
+    "lib": ["ES2022", "DOM"],
+    "types": []
+  },
+  "include": ["src"]
+}
