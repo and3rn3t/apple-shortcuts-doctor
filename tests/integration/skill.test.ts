@@ -107,7 +107,7 @@ describe('standalone skill bundle', () => {
     const file = join(temporaryDirectory(), 'export.json');
     writeFileSync(file, JSON.stringify(workflow(action('sendemail', { Body: 'private body' }))));
     const bin = fileURLToPath(
-      new URL('../../packages/cli/bin/shortcuts-doctor.mjs', import.meta.url)
+      new URL('../../packages/cli/dist/shortcuts-doctor.mjs', import.meta.url)
     );
     const result = run(['inspect', '--format', 'md', file], bin);
     expect(result.status).toBe(0);

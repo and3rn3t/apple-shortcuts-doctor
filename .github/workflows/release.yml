@@ -5,7 +5,7 @@
 #   git push origin v0.1.0
 #
 # Attaches the installable skill directory as a zip. npm publishing of the CLI
-# is planned for roadmap milestone M1.
+# is opt-in via the PUBLISH_NPM repository variable (see the publish-npm job).
 
 name: Release
 
@@ -51,3 +51,33 @@ jobs:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           files: dist/shortcuts-doctor-skill-*.zip
+
+  publish-npm:
+    name: Publish CLI to npm
+    # Opt-in: set repository variable PUBLISH_NPM=true after configuring npm trusted publishing
+    # (npmjs.com -> package settings -> Trusted Publisher -> this repo, workflow release.yml).
+    if: vars.PUBLISH_NPM == 'true'
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing + provenance
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          standalone: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: 0
+      - name: Publish (prepack builds the bundle)
+        run: pnpm --filter shortcuts-doctor publish --no-git-checks
