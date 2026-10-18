@@ -118,6 +118,56 @@ describe('main', () => {
     expect(output(stdout)).toContain('Usage:');
   });
 
+  describe('--fail-on and --quiet', () => {
+    const emailOnly =
+      '{"WFWorkflowActions":[{"WFWorkflowActionIdentifier":"is.workflow.actions.sendemail"}]}';
+    const scriptRun =
+      '{"WFWorkflowActions":[{"WFWorkflowActionIdentifier":"is.workflow.actions.runshellscript"}]}';
+
+    it('exits 2 at the review threshold and still prints the report', () => {
+      const file = writeExport('review.json', emailOnly);
+      expect(main(['--fail-on', 'review', '--', file])).toBe(2);
+      expect(JSON.parse(output(stdout)).actionCount).toBe(1);
+      expect(output(stderr)).toBe(
+        "Shortcuts Doctor: 1 finding(s) at or above 'review' severity.\n"
+      );
+    });
+
+    it('does not fail review-only findings at the warning threshold', () => {
+      const file = writeExport('review.json', emailOnly);
+      expect(main(['--fail-on', 'warning', '--', file])).toBe(0);
+      expect(output(stderr)).toBe('');
+    });
+
+    it('fails warning findings at the warning threshold', () => {
+      const file = writeExport('warning.json', scriptRun);
+      expect(main(['--fail-on', 'warning', '--', file])).toBe(2);
+    });
+
+    it('passes a clean export', () => {
+      const file = writeExport('clean.json', '{"WFWorkflowActions":[]}');
+      expect(main(['--fail-on', 'review', '--', file])).toBe(0);
+    });
+
+    it('suppresses the report with --quiet but keeps the exit code', () => {
+      const file = writeExport('warning.json', scriptRun);
+      expect(main(['--quiet', '--fail-on', 'review', '--', file])).toBe(2);
+      expect(output(stdout)).toBe('');
+      expect(output(stderr)).not.toContain('runshellscript');
+    });
+
+    it('prints nothing for --quiet without --fail-on', () => {
+      const file = writeExport('clean.json', '{"WFWorkflowActions":[]}');
+      expect(main(['--quiet', '--', file])).toBe(0);
+      expect(output(stdout)).toBe('');
+    });
+
+    it.each([['--fail-on', 'error'], ['--fail-on']])('rejects %j', (...args) => {
+      expect(main([...args, 'x'])).toBe(1);
+      expect(output(stdout)).toContain('Usage:');
+    });
+  });
+
   it('rejects unknown formats', () => {
     expect(main(['--format', 'xml', 'x'])).toBe(1);
     expect(output(stdout)).toContain('Usage:');

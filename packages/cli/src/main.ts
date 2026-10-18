@@ -1,18 +1,29 @@
 import { inspectWorkflow, renderReport, toReportV1 } from '@shortcuts-doctor/core';
-import type { ReportFormat } from '@shortcuts-doctor/core';
+import type { Report, ReportFormat, Severity } from '@shortcuts-doctor/core';
 import { parseExport } from './plutil.ts';
 import { readExport } from './read-export.ts';
 
 const USAGE = [
-  'Usage: shortcuts-doctor inspect [--format text|json|md] [--format-version 1|2] <export-file>',
-  '       node inspect-shortcut.mjs [--format text|json|md] [--format-version 1|2] -- <export-file>',
+  'Usage: shortcuts-doctor inspect [options] <export-file>',
+  '       node inspect-shortcut.mjs [options] -- <export-file>',
+  '',
+  'Options:',
+  '  --format text|json|md     Output format (default: text on a terminal, json when piped)',
+  '  --format-version 1|2      JSON report version (default: 2)',
+  '  --fail-on review|warning  Exit 2 if any finding is at or above this severity',
+  '  --quiet                   Do not print the report (errors and --fail-on notes still print)',
+  '',
+  'Exit codes: 0 ok, 1 usage or input error, 2 findings reached the --fail-on threshold.',
   '',
 ].join('\n');
+const EXIT_FINDINGS = 2;
 const FORMATS: readonly string[] = ['text', 'json', 'md'];
 
 interface ParsedArgs {
   format: ReportFormat;
   formatVersion: 1 | 2;
+  failOn: Severity | undefined;
+  quiet: boolean;
   files: string[];
   help: boolean;
 }
@@ -33,7 +44,14 @@ function stripSubcommand(argv: string[]): string[] {
 
 function parseArgs(rawArgv: string[]): ParsedArgs | undefined {
   const argv = stripSubcommand(rawArgv);
-  const parsed: ParsedArgs = { format: defaultFormat(), formatVersion: 2, files: [], help: false };
+  const parsed: ParsedArgs = {
+    format: defaultFormat(),
+    formatVersion: 2,
+    failOn: undefined,
+    quiet: false,
+    files: [],
+    help: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] as string;
     if (arg === '--') {
@@ -49,9 +67,19 @@ function parseArgs(rawArgv: string[]): ParsedArgs | undefined {
       const value = argv[++i];
       if (value !== '1' && value !== '2') return undefined;
       parsed.formatVersion = value === '1' ? 1 : 2;
-    } else parsed.files.push(arg);
+    } else if (arg === '--fail-on') {
+      const value = argv[++i];
+      if (value !== 'review' && value !== 'warning') return undefined;
+      parsed.failOn = value;
+    } else if (arg === '--quiet') parsed.quiet = true;
+    else parsed.files.push(arg);
   }
   return parsed;
+}
+
+function countAtOrAbove(report: Report, threshold: Severity): number {
+  const { review, warning } = report.summary.findingsBySeverity;
+  return threshold === 'warning' ? warning : review + warning;
 }
 
 /** Runs the inspector for one file argument and returns the process exit code. */
@@ -64,12 +92,19 @@ export function main(argv: string[]): number {
   try {
     const report = inspectWorkflow(parseExport(readExport(args.files[0] as string)));
     const legacyJson = args.format === 'json' && args.formatVersion === 1;
-    process.stdout.write(
-      legacyJson
-        ? `${JSON.stringify(toReportV1(report), null, 2)}\n`
-        : renderReport(report, args.format)
+    if (!args.quiet) {
+      process.stdout.write(
+        legacyJson
+          ? `${JSON.stringify(toReportV1(report), null, 2)}\n`
+          : renderReport(report, args.format)
+      );
+    }
+    const failing = args.failOn ? countAtOrAbove(report, args.failOn) : 0;
+    if (!failing) return 0;
+    process.stderr.write(
+      `Shortcuts Doctor: ${failing} finding(s) at or above '${args.failOn}' severity.\n`
     );
-    return 0;
+    return EXIT_FINDINGS;
   } catch (error) {
     // Filesystem error messages can contain private paths; never echo them.
     const message = hasErrorCode(error)

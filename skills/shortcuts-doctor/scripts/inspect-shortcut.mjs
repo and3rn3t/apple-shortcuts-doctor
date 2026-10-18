@@ -378,10 +378,19 @@ function readExport(file) {
 
 // packages/cli/src/main.ts
 var USAGE = [
-  "Usage: shortcuts-doctor inspect [--format text|json|md] [--format-version 1|2] <export-file>",
-  "       node inspect-shortcut.mjs [--format text|json|md] [--format-version 1|2] -- <export-file>",
+  "Usage: shortcuts-doctor inspect [options] <export-file>",
+  "       node inspect-shortcut.mjs [options] -- <export-file>",
+  "",
+  "Options:",
+  "  --format text|json|md     Output format (default: text on a terminal, json when piped)",
+  "  --format-version 1|2      JSON report version (default: 2)",
+  "  --fail-on review|warning  Exit 2 if any finding is at or above this severity",
+  "  --quiet                   Do not print the report (errors and --fail-on notes still print)",
+  "",
+  "Exit codes: 0 ok, 1 usage or input error, 2 findings reached the --fail-on threshold.",
   ""
 ].join("\n");
+var EXIT_FINDINGS = 2;
 var FORMATS = ["text", "json", "md"];
 function hasErrorCode(error) {
   return error instanceof Error && "code" in error && Boolean(error.code);
@@ -394,7 +403,14 @@ function stripSubcommand(argv) {
 }
 function parseArgs(rawArgv) {
   const argv = stripSubcommand(rawArgv);
-  const parsed = { format: defaultFormat(), formatVersion: 2, files: [], help: false };
+  const parsed = {
+    format: defaultFormat(),
+    formatVersion: 2,
+    failOn: void 0,
+    quiet: false,
+    files: [],
+    help: false
+  };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--") {
@@ -410,9 +426,18 @@ function parseArgs(rawArgv) {
       const value = argv[++i];
       if (value !== "1" && value !== "2") return void 0;
       parsed.formatVersion = value === "1" ? 1 : 2;
-    } else parsed.files.push(arg);
+    } else if (arg === "--fail-on") {
+      const value = argv[++i];
+      if (value !== "review" && value !== "warning") return void 0;
+      parsed.failOn = value;
+    } else if (arg === "--quiet") parsed.quiet = true;
+    else parsed.files.push(arg);
   }
   return parsed;
+}
+function countAtOrAbove(report, threshold) {
+  const { review, warning } = report.summary.findingsBySeverity;
+  return threshold === "warning" ? warning : review + warning;
 }
 function main(argv) {
   const args = parseArgs(argv);
@@ -423,11 +448,19 @@ function main(argv) {
   try {
     const report = inspectWorkflow(parseExport2(readExport(args.files[0])));
     const legacyJson = args.format === "json" && args.formatVersion === 1;
-    process.stdout.write(
-      legacyJson ? `${JSON.stringify(toReportV1(report), null, 2)}
+    if (!args.quiet) {
+      process.stdout.write(
+        legacyJson ? `${JSON.stringify(toReportV1(report), null, 2)}
 ` : renderReport(report, args.format)
+      );
+    }
+    const failing = args.failOn ? countAtOrAbove(report, args.failOn) : 0;
+    if (!failing) return 0;
+    process.stderr.write(
+      `Shortcuts Doctor: ${failing} finding(s) at or above '${args.failOn}' severity.
+`
     );
-    return 0;
+    return EXIT_FINDINGS;
   } catch (error) {
     const message = hasErrorCode(error) ? "Cannot read the supplied export file." : error.message;
     process.stderr.write(`Shortcuts Doctor: ${message}

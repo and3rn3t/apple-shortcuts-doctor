@@ -115,6 +115,14 @@ describe('standalone skill bundle', () => {
     expect(result.stdout).not.toContain('private body');
   });
 
+  it('exits 2 from the bundle when --fail-on is reached', () => {
+    const file = join(temporaryDirectory(), 'export.json');
+    writeFileSync(file, JSON.stringify(workflow(action('runshellscript'))));
+    const result = run(['--quiet', '--fail-on', 'warning', '--', file]);
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+  });
+
   it('defaults to JSON when piped', () => {
     const file = join(temporaryDirectory(), 'export.json');
     writeFileSync(file, JSON.stringify(workflow()));
