@@ -2,7 +2,7 @@
   "name": "shortcuts-doctor-workspace",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.28.5",
+  "packageManager": "pnpm@11.28.6",
   "engines": {
     "node": ">=22"
   },
@@ -24,7 +24,7 @@
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^22.20.5",
+    "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^5.0.5",
     "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
