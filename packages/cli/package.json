@@ -4,7 +4,7 @@
   "description": "Command-line static inspector for Apple Shortcut exports.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/shortcuts-doctor.mjs"
   },
   "bin": {
     "shortcuts-doctor": "./dist/shortcuts-doctor.mjs"
@@ -12,7 +12,7 @@
   "engines": {
     "node": ">=22"
   },
-  "dependencies": {
+  "devDependencies": {
     "@shortcuts-doctor/core": "workspace:*"
   },
   "files": [
