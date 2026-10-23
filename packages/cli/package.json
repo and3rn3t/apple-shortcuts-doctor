@@ -1,19 +1,42 @@
 {
   "name": "shortcuts-doctor",
   "version": "0.1.0",
-  "private": true,
   "description": "Command-line static inspector for Apple Shortcut exports.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/shortcuts-doctor.mjs"
   },
   "bin": {
-    "shortcuts-doctor": "./bin/shortcuts-doctor.mjs"
+    "shortcuts-doctor": "./dist/shortcuts-doctor.mjs"
   },
   "engines": {
     "node": ">=22"
   },
-  "dependencies": {
+  "devDependencies": {
     "@shortcuts-doctor/core": "workspace:*"
-  }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/and3rn3t/apple-shortcuts-doctor.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "prepack": "node ../../scripts/build-cli.mjs"
+  },
+  "keywords": [
+    "apple-shortcuts",
+    "shortcuts",
+    "static-analysis",
+    "privacy",
+    "security"
+  ]
 }

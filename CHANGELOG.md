@@ -20,11 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- npm packaging for `shortcuts-doctor`: self-contained bin built by `pnpm build:cli`
+  (`packages/cli/dist/`, gitignored, built by `prepack` and `validate`), and an opt-in
+  `publish-npm` release job using trusted publishing with provenance.
 - `--fail-on review|warning` (exit code 2 when findings reach the threshold) and `--quiet`,
   for CI use. Exit code 1 still means usage or input errors.
 - `shortcuts-doctor inspect <file>` subcommand and a `bin` entry in `packages/cli`. The bare
-  `inspect-shortcut.mjs -- <file>` form used by the skill is unchanged. (The bin runs TypeScript
-  source in the workspace; publishable output arrives with M1.5.)
+  `inspect-shortcut.mjs -- <file>` form used by the skill is unchanged.
 - Report `formatVersion: 2`: adds `summary` (counts by severity and category) and a stable
   `ruleId` on each finding. Published as `schema/report.v2.json` and tested with Ajv. Legacy
   output remains available via `--format json --format-version 1` and `toReportV1`.
