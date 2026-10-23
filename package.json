@@ -2,7 +2,7 @@
   "name": "shortcuts-doctor-workspace",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.28.6",
+  "packageManager": "pnpm@11.28.8",
   "engines": {
     "node": ">=22"
   },
