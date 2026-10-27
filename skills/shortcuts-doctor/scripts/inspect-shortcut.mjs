@@ -1138,7 +1138,7 @@ function inspect(argv) {
     return 1;
   }
   if (args?.version) {
-    process.stdout.write(`${"0.3.1"}
+    process.stdout.write(`${"0.4.0"}
 `);
     return 0;
   }
