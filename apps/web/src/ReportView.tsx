@@ -1,6 +1,7 @@
 import { displayIdentifier } from '@shortcuts-doctor/core';
 import type { Finding, InspectedAction, Report } from '@shortcuts-doctor/core';
 import type { RefObject } from 'react';
+import { downloadMarkdown } from './download.ts';
 import { FINDING_LABEL, FINDING_ORDER, SEVERITIES, SEVERITY_LABEL } from './labels.ts';
 
 function ActionLinks({ indexes }: { indexes: readonly number[] }): React.JSX.Element {
@@ -134,6 +135,11 @@ export function ReportView({
       <p role="note" className="note">
         Not a safety verdict. Severity only orders your manual review, and an empty list of findings
         does not mean a Shortcut is safe. Nothing in the export was run.
+      </p>
+      <p>
+        <button type="button" className="secondary" onClick={() => downloadMarkdown(report)}>
+          Download Markdown report
+        </button>
       </p>
       <h3>Summary</h3>
       <Summary report={report} />
