@@ -5,6 +5,8 @@ export default defineConfig({
   define: cliVersionDefine(),
   test: {
     include: ['packages/*/test/**/*.test.ts', 'tests/**/*.test.ts'],
+    // Claude Code worktrees hold full copies of the repo, tests included.
+    exclude: ['**/node_modules/**', '.claude/**'],
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.ts'],

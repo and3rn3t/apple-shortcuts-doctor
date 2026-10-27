@@ -1,5 +1,7 @@
 pnpm-lock.yaml
 coverage/
+# Claude Code worktrees: separate checkouts of this repo, linted in their own right.
+.claude/
 dist/
 packages/cli/dist/
 skills/shortcuts-doctor/scripts/inspect-shortcut.mjs
