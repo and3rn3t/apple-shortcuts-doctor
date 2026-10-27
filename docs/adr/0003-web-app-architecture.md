@@ -24,8 +24,10 @@ the whole engine client-side.
 - **Response headers from `public/_headers`.** A strict Content-Security-Policy (including
   `connect-src 'none'`) and related headers are served from Vite's `public/_headers` file, so the
   policy ships with the assets. `scripts/check-web-build.mjs` runs after every web build and
-  fails on a CSP that allows anything beyond `'none'`, `'self'`, and `data:`, and on any network
-  API, inline script, or external resource in the built files. The Vite module-preload polyfill
+  fails on a CSP that allows anything beyond `'none'`, `'self'`, and `data:` (or repeats a
+  directive, since browsers enforce the first copy), on any `! header` rule that detaches the CSP
+  or another required header, and on any network API, inline script, or external resource in the
+  built files. Detaching the CSP for one path will need an explicit exception in the script. The Vite module-preload polyfill
   is off because it calls `fetch()`. Every matching `_headers` rule applies (checked with `wrangler
 dev`), so a path that matches two rules gets two Content-Security-Policy headers and browsers
   enforce both; a more specific rule can't relax this policy. Relaxing it for one path (a service

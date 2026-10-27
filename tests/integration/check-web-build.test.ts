@@ -91,8 +91,12 @@ describe('scripts/check-web-build.mjs', () => {
     ['sendBeacon', 'navigator.sendBeacon("/log", data);', 'uses sendBeacon'],
     ['importScripts', 'importScripts("/x.js");', 'uses importScripts'],
     ['RTCPeerConnection', 'new RTCPeerConnection();', 'uses RTCPeerConnection'],
-    ['eval', 'eval("1");', 'dynamic code execution'],
+    ['eval', 'eval("1");', 'uses eval'],
+    ['window.eval', 'window.eval("1");', 'uses eval'],
+    ['globalThis.eval', 'globalThis.eval("1");', 'uses eval'],
+    ['indirect eval', '(0, eval)("1");', 'uses eval'],
     ['new Function', 'new Function("return 1");', 'dynamic code execution'],
+    ['Function without new', 'Function("return 1")();', 'dynamic code execution'],
   ])('fails a script that uses %s', (_label, js, message) => {
     const result = check(build({ js }));
     expect(result.status).toBe(1);
@@ -132,6 +136,30 @@ describe('scripts/check-web-build.mjs', () => {
       'external reference "//cdn.example.invalid/a.css"',
     ],
     [
+      'a remote srcset candidate after a local one',
+      GOOD_HTML.replace(
+        '</body>',
+        '<img srcset="/assets/a.png 1x, https://cdn.example.invalid/b.png 2x"></body>'
+      ),
+      'external reference "https://cdn.example.invalid/b.png"',
+    ],
+    [
+      'a remote imagesrcset',
+      GOOD_HTML.replace(
+        '</head>',
+        '<link rel=preload as=image imagesrcset="//cdn.example.invalid/a.png 1x"></head>'
+      ),
+      'external reference "//cdn.example.invalid/a.png"',
+    ],
+    [
+      'a remote formaction',
+      GOOD_HTML.replace(
+        '</body>',
+        '<button formaction="https://example.invalid/x">x</button></body>'
+      ),
+      'external reference "https://example.invalid/x"',
+    ],
+    [
       'a single-quoted external link',
       GOOD_HTML.replace('</head>', "<link rel=preload href='http://example.invalid/f'></head>"),
       'external reference "http://example.invalid/f"',
@@ -150,6 +178,14 @@ describe('scripts/check-web-build.mjs', () => {
     const result = check(build({ css }));
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('assets/index-abc.css: external CSS reference');
+  });
+
+  it('accepts a srcset whose candidates are all same-origin', () => {
+    const html = GOOD_HTML.replace(
+      '</body>',
+      '<img srcset="/a.png 1x, /b.png 2x, c.png 3x"></body>'
+    );
+    expect(check(build({ html })).status).toBe(0);
   });
 
   it('accepts same-origin and data: CSS references', () => {
@@ -186,6 +222,34 @@ describe('scripts/check-web-build.mjs', () => {
     ],
     ['a wildcard', withCsp(l => l.replace("font-src 'self'", 'font-src *')), 'font-src allows "*"'],
     [
+      'a permissive directive hidden before a strict duplicate',
+      withCsp(l => l.replace("connect-src 'none'", "connect-src 'self'; connect-src 'none'")),
+      'duplicate directive "connect-src"',
+    ],
+    [
+      'a strict directive followed by a permissive duplicate',
+      withCsp(l => l.replace("connect-src 'none'", "connect-src 'none'; connect-src 'self'")),
+      'duplicate directive "connect-src"',
+    ],
+    [
+      'the CSP detached for one page',
+      `${realHeaders}/index.html\n  ! Content-Security-Policy\n`,
+      '_headers /index.html removes content-security-policy',
+    ],
+    [
+      'a required header detached for one path',
+      `${realHeaders}/app/*\n  ! X-Content-Type-Options\n`,
+      '_headers /app/* removes x-content-type-options',
+    ],
+    [
+      'the CSP set twice in one rule',
+      realHeaders.replace(
+        '  X-Content-Type-Options',
+        "  Content-Security-Policy: default-src 'none'; connect-src 'none'\n  X-Content-Type-Options"
+      ),
+      '_headers /* sets content-security-policy twice',
+    ],
+    [
       'a misspelled directive',
       withCsp(l => l.replace('connect-src', 'conect-src')),
       'unknown directive "conect-src"',
@@ -218,6 +282,11 @@ describe('scripts/check-web-build.mjs', () => {
     const result = check(build({ headers }));
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(message);
+  });
+
+  it('accepts a more specific rule that adds its own header without removing the CSP', () => {
+    const headers = `${realHeaders}/other.js\n  Cache-Control: no-store\n  Content-Security-Policy: default-src 'none'; connect-src 'none'\n`;
+    expect(check(build({ headers })).status).toBe(0);
   });
 
   it('reports every problem at once, prefixed with its file', () => {
