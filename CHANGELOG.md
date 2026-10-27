@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/profile-exports.mjs`: a stats-only structural profile of a folder of exports (keys,
+  serialization and attachment types, identifiers, sizes, versions), never values. Findings from
+  138 published Shortcuts are in [docs/research/export-format.md](docs/research/export-format.md).
+
 ### Fixed
 
 - **Binary plists with 16-byte integers no longer fail to decode.** CoreFoundation stores unsigned
