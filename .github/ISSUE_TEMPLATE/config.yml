@@ -1,13 +1,9 @@
-# Allow users to create blank issues without a template.
-blank_issues_enabled: true
-
-# TODO: Add links to community resources (discussions, Discord, forums, etc.)
-# Example:
-# contact_links:
-#   - name: GitHub Discussions
-#     url: https://github.com/YOUR_ORG/YOUR_REPO/discussions
-#     about: Ask questions and share ideas
-#   - name: Discord
-#     url: https://discord.gg/YOUR_INVITE
-#     about: Chat with the community in real time
-contact_links: []
+# Questions go to Discussions; bugs and features use the templates.
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/and3rn3t/apple-shortcuts-doctor/discussions
+    about: Ask how something works or share an idea
+  - name: Security vulnerability
+    url: https://github.com/and3rn3t/apple-shortcuts-doctor/security/policy
+    about: Report security problems privately, not as a public issue
