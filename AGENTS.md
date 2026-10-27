@@ -61,6 +61,8 @@ pnpm format             # prettier --write
 pnpm type-check         # tsc per package + web app + tests
 pnpm build:skill        # regenerate the skill bundle
 pnpm --filter @shortcuts-doctor/web dev    # serve the web app locally (build: same filter, `build`)
+pnpm --filter @shortcuts-doctor/web exec playwright install chromium   # once, for the e2e suite
+pnpm test:e2e           # build the web app, then Playwright in Chromium (CI job: web-e2e)
 pnpm validate           # lint + format:check + type-check + test:coverage + bundle drift (pre-push and CI)
 ```
 

@@ -1,5 +1,8 @@
 pnpm-lock.yaml
 coverage/
+**/.wrangler/
+apps/web/test-results/
+apps/web/playwright-report/
 # Claude Code worktrees: separate checkouts of this repo, linted in their own right.
 .claude/
 dist/
