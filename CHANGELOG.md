@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CLI no longer spawns `/usr/bin/plutil`, and the skill bundle no longer exports
   `convertWithPlutil`. `parseExport` is now core's, with no platform argument (#24).
 
+- `--version` / `-v` prints the CLI version (baked in at build time) and `-h` is an alias for
+  `--help` (#25).
+
+### Fixed
+
+- Unrecognized options now exit `1` with `Unknown option: <name>. Run --help for usage.` instead
+  of `Cannot read the supplied export file.` Only the option name is printed, never its value (#25).
+
 ### Changed
 
 - The CLI parses arguments with `node:util` `parseArgs` in strict mode. Unknown options and

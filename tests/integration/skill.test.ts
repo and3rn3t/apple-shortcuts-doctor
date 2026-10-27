@@ -162,6 +162,23 @@ describe('standalone skill bundle', () => {
     expect(run(['--help']).status).toBe(0);
   });
 
+  it('prints the package version baked in at build time', () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../../packages/cli/package.json', import.meta.url), 'utf8')
+    ) as { version: string };
+    const result = run(['--version']);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe(`${manifest.version}\n`);
+  });
+
+  it('names an unknown option from the bundle', () => {
+    const result = run(['--bogus', 'x']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe(
+      'Shortcuts Doctor: Unknown option: --bogus. Run --help for usage.\n'
+    );
+  });
+
   it('inspects the JSON fixture without echoing parameter values', () => {
     const result = run(['--', fixture('mixed-actions.json')]);
     expect(result.status).toBe(0);

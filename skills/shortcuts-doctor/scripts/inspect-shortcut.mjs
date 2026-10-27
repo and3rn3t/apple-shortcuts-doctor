@@ -793,18 +793,22 @@ var USAGE = [
   "  --format-version 1|2      JSON report version (default: 2)",
   "  --fail-on review|warning  Exit 2 if any finding is at or above this severity",
   "  --quiet                   Do not print the report (errors and --fail-on notes still print)",
+  "  -v, --version             Print the version",
+  "  -h, --help                Show this help",
   "",
   "Exit codes: 0 ok, 1 usage or input error, 2 findings reached the --fail-on threshold.",
   ""
 ].join("\n");
 var EXIT_FINDINGS = 2;
+var MAX_OPTION_NAME_LENGTH = 40;
 var FORMATS = ["text", "json", "md"];
 var INSPECT_OPTIONS = {
   format: { type: "string" },
   "format-version": { type: "string" },
   "fail-on": { type: "string" },
   quiet: { type: "boolean" },
-  help: { type: "boolean" }
+  help: { type: "boolean", short: "h" },
+  version: { type: "boolean", short: "v" }
 };
 var INSPECT_CONFIG = { options: INSPECT_OPTIONS, allowPositionals: true, strict: true };
 function hasErrorCode(error) {
@@ -821,7 +825,18 @@ function toFailOn(value) {
   if (value === void 0) return void 0;
   return value === "review" || value === "warning" ? value : null;
 }
+function findUnknownOption(argv) {
+  const { tokens } = parseArgs({ ...INSPECT_CONFIG, args: argv, strict: false, tokens: true });
+  const unknown = tokens.find(
+    (token) => token.kind === "option" && !Object.hasOwn(INSPECT_OPTIONS, token.name)
+  );
+  if (unknown?.kind !== "option") return void 0;
+  const name = unknown.rawName.slice(0, MAX_OPTION_NAME_LENGTH).replace(/[^\w-]/g, "?");
+  return { unknownOption: name };
+}
 function parseInspectArgs(argv) {
+  const unknownOption = findUnknownOption(argv);
+  if (unknownOption) return unknownOption;
   let parsed;
   try {
     parsed = parseArgs({ ...INSPECT_CONFIG, args: argv });
@@ -839,7 +854,8 @@ function parseInspectArgs(argv) {
     failOn,
     quiet: values.quiet ?? false,
     files: positionals,
-    help: values.help ?? false
+    help: values.help ?? false,
+    version: values.version ?? false
   };
 }
 function countAtOrAbove(report, threshold) {
@@ -848,6 +864,18 @@ function countAtOrAbove(report, threshold) {
 }
 function inspect(argv) {
   const args = parseInspectArgs(argv);
+  if (args && "unknownOption" in args) {
+    process.stderr.write(
+      `Shortcuts Doctor: Unknown option: ${args.unknownOption}. Run --help for usage.
+`
+    );
+    return 1;
+  }
+  if (args?.version) {
+    process.stdout.write(`${"0.2.0"}
+`);
+    return 0;
+  }
   if (!args || args.help || args.files.length !== 1) {
     process.stdout.write(USAGE);
     return args?.help ? 0 : 1;
