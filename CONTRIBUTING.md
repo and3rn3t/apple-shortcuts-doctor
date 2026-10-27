@@ -95,6 +95,25 @@ All new code should include tests. Follow the patterns documented in:
 npm test           # TODO: Replace with your test command
 ```
 
+## Releasing
+
+Maintainers only. A pushed `vX.Y.Z` tag runs [`release.yml`](.github/workflows/release.yml).
+
+1. Set `"version"` to `X.Y.Z` in both `packages/cli/package.json` and
+   `packages/core/package.json` (they move in lockstep).
+2. Move the `CHANGELOG.md` `[Unreleased]` entries under a new `[X.Y.Z] - YYYY-MM-DD` heading.
+3. Merge that to `main`, then tag the merge commit and push the tag:
+
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+The workflow fails before doing anything if the tag doesn't match both package versions, and the
+npm job fails if that version is already on the registry. If either check fails, fix the
+version, delete the tag (`git push --delete origin vX.Y.Z`), and tag again. npm publishing runs
+only when the `PUBLISH_NPM` repository variable is `true`.
+
 ## AI-Assisted Development
 
 This repository includes configuration files for AI coding assistants (Copilot, Cursor, Windsurf, Cline, Claude Code). These files define project conventions so AI tools produce consistent, high-quality code.
