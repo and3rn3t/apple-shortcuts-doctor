@@ -161,17 +161,18 @@ class BinaryPlistReader {
   }
 
   private readInteger(offset: number, info: number): number {
-    if (info > 3) fail();
+    if (info > 4) fail();
     const size = 1 << info;
     this.checkRange(offset + 1, size);
-    // 8-byte integers are signed; smaller ones are unsigned.
-    if (size === 8) {
-      const value = this.view.getBigInt64(offset + 1);
-      if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER))
-        fail();
-      return Number(value);
-    }
-    return readUnsigned(this.view, offset + 1, size);
+    // 1-4 bytes are unsigned and 8 bytes signed. CoreFoundation writes unsigned 64-bit numbers,
+    // such as a date action's calendar Unit, as 16-byte signed integers even when they are small.
+    if (size < 8) return readUnsigned(this.view, offset + 1, size);
+    const high = size === 16 ? this.view.getBigInt64(offset + 1) : 0n;
+    const low =
+      size === 16 ? this.view.getBigUint64(offset + 9) : this.view.getBigInt64(offset + 1);
+    const value = (high << 64n) + low;
+    if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) fail();
+    return Number(value);
   }
 
   private readReal(offset: number, info: number): number {

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Binary plists with 16-byte integers no longer fail to decode.** CoreFoundation stores unsigned
+  64-bit numbers, such as a date action's calendar `Unit`, as 16-byte integers even when the
+  value is small. 12 of 138 published real-world Shortcuts were rejected by 0.3.0; all 138 now
+  decode and match Python's `plistlib` (dates to the millisecond). Values outside JavaScript's
+  safe-integer range are still rejected.
 - Binary plist strings decode with the native `TextDecoder`, about 4× faster. Hostile files that
   stay inside the 64 MiB decoded-byte budget are rejected quickly, and a byte-budget test that
   timed out on Windows CI now passes.
