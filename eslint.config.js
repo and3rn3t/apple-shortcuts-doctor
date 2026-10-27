@@ -42,6 +42,11 @@ export default tseslint.config(
     },
   },
   {
+    // The service worker runs in a worker, not a page.
+    files: ['apps/web/sw/**/*.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     // The web app runs entirely in the browser.
     files: ['apps/web/src/**/*.{ts,tsx}'],
     extends: [reactHooks.configs.flat.recommended],

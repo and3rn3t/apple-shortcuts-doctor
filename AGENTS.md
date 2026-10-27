@@ -30,6 +30,9 @@ packages/core/   @shortcuts-doctor/core: pure TypeScript, browser-safe (no node:
   src/types.ts     Report, Finding, InspectedAction, …
 packages/cli/    Node-only: readExport (bounded read), main(argv)
 apps/web/        @shortcuts-doctor/web: Vite + React, client-side only; Workers static assets (wrangler.jsonc)
+  sw/sw.js         the offline service worker (template; the build writes dist/sw.js)
+  build/           Vite plugin that generates the worker's precache list
+  e2e/             Playwright tests (real Chromium against `wrangler dev`)
 skills/shortcuts-doctor/
   SKILL.md                    skill instructions (user-facing contract)
   scripts/inspect-shortcut.mjs  GENERATED bundle of packages/cli; never edit by hand

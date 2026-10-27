@@ -30,7 +30,8 @@ export async function watch(page: Page): Promise<Watch> {
   const requests: string[] = [];
   const consoleErrors: string[] = [];
   let marked = 0;
-  page.on('request', request => requests.push(request.url()));
+  // On the context, so requests made by the service worker are seen as well as the page's own.
+  page.context().on('request', request => requests.push(request.url()));
   page.on('console', message => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
@@ -51,21 +52,55 @@ export async function watch(page: Page): Promise<Watch> {
   };
 }
 
-/** Opens the app and waits until it has finished loading, then marks the request baseline. */
+/** Waits until the offline worker is active and controlling the page (it precaches on install). */
+export async function waitForOfflineReady(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) {
+      await new Promise<void>(resolve =>
+        navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), {
+          once: true,
+        })
+      );
+    }
+  });
+}
+
+/**
+ * Opens the app, waits until it has loaded and its offline worker has finished precaching, then
+ * marks the request baseline: anything after this is something the app chose to do.
+ */
 export async function openApp(page: Page): Promise<Watch> {
   const watcher = await watch(page);
   await page.goto('/');
+  await waitForOfflineReady(page);
   await page.waitForLoadState('networkidle');
   watcher.mark();
   return watcher;
 }
 
-/** What the page has stored: all of these must stay empty. */
-export function storageUsed(page: Page): Promise<Record<string, number>> {
-  return page.evaluate(async () => ({
-    localStorage: localStorage.length,
-    sessionStorage: sessionStorage.length,
-    indexedDB: (await indexedDB.databases()).length,
-    cacheStorage: (await caches.keys()).length,
-  }));
+export interface StorageUsed {
+  localStorage: number;
+  sessionStorage: number;
+  indexedDB: number;
+  /** Paths of every cached response, sorted. Only the offline worker's precache may be here. */
+  cachedPaths: string[];
+}
+
+/** What the page has stored. Everything but the worker's precache must stay empty. */
+export function storageUsed(page: Page): Promise<StorageUsed> {
+  return page.evaluate(async () => {
+    const cachedPaths: string[] = [];
+    for (const name of await caches.keys()) {
+      for (const request of await (await caches.open(name)).keys()) {
+        cachedPaths.push(new URL(request.url).pathname);
+      }
+    }
+    return {
+      localStorage: localStorage.length,
+      sessionStorage: sessionStorage.length,
+      indexedDB: (await indexedDB.databases()).length,
+      cachedPaths: cachedPaths.sort(),
+    };
+  });
 }

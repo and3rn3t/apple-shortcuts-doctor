@@ -23,11 +23,42 @@ const GOOD_HTML = `<!doctype html>
 const GOOD_JS = 'const a = 1; export { a };';
 const GOOD_CSS = 'body { margin: 0; background: url(data:image/png;base64,AAAA); }';
 
+const ICONS = ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
+const GOOD_MANIFEST = JSON.stringify({
+  name: 'Shortcuts Doctor',
+  start_url: '/',
+  display: 'standalone',
+  icons: [
+    { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ],
+});
+const PRECACHED = [
+  '/',
+  '/assets/index-abc.css',
+  '/assets/index-abc.js',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+  '/manifest.webmanifest',
+];
+const CACHE_NAME = 'shortcuts-doctor-0123456789ab';
+
+/** A service worker with the build manifest the plugin writes, plus optional extra code. */
+const worker = (files: string[] = PRECACHED, extra = '', cache = CACHE_NAME): string =>
+  `const BUILD = /* @build */ ${JSON.stringify({ cache, files })} /* @end */;\n` +
+  `self.addEventListener('fetch', () => {});\n${extra}\n`;
+
 interface Build {
   html?: string;
   js?: string;
   css?: string;
   headers?: string;
+  serviceWorker?: string;
+  manifest?: string;
+  /** Files (relative to dist) to leave out. */
+  omit?: string[];
 }
 
 afterEach(() => {
@@ -39,14 +70,25 @@ function build({
   js = GOOD_JS,
   css = GOOD_CSS,
   headers = realHeaders,
+  serviceWorker = worker(),
+  manifest = GOOD_MANIFEST,
+  omit = [],
 }: Build): string {
   const dist = mkdtempSync(join(tmpdir(), 'shortcuts-doctor-web-'));
   roots.push(dist);
   mkdirSync(join(dist, 'assets'));
-  writeFileSync(join(dist, 'index.html'), html);
-  writeFileSync(join(dist, 'assets', 'index-abc.js'), js);
-  writeFileSync(join(dist, 'assets', 'index-abc.css'), css);
-  writeFileSync(join(dist, '_headers'), headers);
+  const files: Record<string, string> = {
+    'index.html': html,
+    'assets/index-abc.js': js,
+    'assets/index-abc.css': css,
+    _headers: headers,
+    'sw.js': serviceWorker,
+    'manifest.webmanifest': manifest,
+    ...Object.fromEntries(ICONS.map(icon => [icon, 'png'])),
+  };
+  for (const [name, text] of Object.entries(files)) {
+    if (!omit.includes(name)) writeFileSync(join(dist, name), text);
+  }
   return dist;
 }
 
@@ -54,23 +96,29 @@ function check(dist: string): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, [script, '--dist', dist], { encoding: 'utf8' });
 }
 
+/** Edits the page rule's CSP line (the one containing connect-src 'none'); the worker has its own. */
 const withCsp = (replace: (csp: string) => string): string =>
   realHeaders
     .split('\n')
-    .map(line => (line.includes('Content-Security-Policy:') ? replace(line) : line))
+    .map(line =>
+      line.includes('Content-Security-Policy:') && line.includes("connect-src 'none'")
+        ? replace(line)
+        : line
+    )
     .join('\n');
-const withoutHeader = (name: string): string =>
-  realHeaders
-    .split('\n')
-    .filter(line => !line.trim().startsWith(`${name}:`))
-    .join('\n');
+/** Removes the page rule's copy of a header, keeping everything else (including the worker rule). */
+const withoutHeader = (name: string): string => {
+  const lines = realHeaders.split('\n');
+  const index = lines.findIndex(line => line.trim().startsWith(`${name}:`));
+  return lines.filter((_, position) => position !== index).join('\n');
+};
 
 describe('scripts/check-web-build.mjs', () => {
   it('accepts a build with only same-origin resources and the shipped _headers', () => {
     const result = check(build({}));
     expect(result.status).toBe(0);
     expect(result.stdout).toBe(
-      'check-web-build: ok (4 files, no network or storage APIs, strict CSP)\n'
+      'check-web-build: ok (9 files, no network or storage APIs, strict CSP)\n'
     );
   });
 
@@ -318,5 +366,188 @@ describe('scripts/check-web-build.mjs', () => {
     expect(incomplete.status).toBe(1);
     expect(incomplete.stderr).toContain('index.html is missing');
     expect(incomplete.stderr).toContain('_headers is missing');
+  });
+});
+
+describe('service worker', () => {
+  it('may fetch (to precache), but no other forbidden API', () => {
+    expect(check(build({ serviceWorker: worker(PRECACHED, 'fetch("/x");') })).status).toBe(0);
+    for (const [code, message] of [
+      ['new XMLHttpRequest();', 'uses XMLHttpRequest'],
+      ['new WebSocket("wss://x.invalid");', 'uses WebSocket'],
+      ['navigator.sendBeacon("/x");', 'uses sendBeacon'],
+      ['localStorage.setItem("a", "b");', 'uses localStorage'],
+      ['eval("1");', 'uses eval'],
+    ] as const) {
+      const result = check(build({ serviceWorker: worker(PRECACHED, code) }));
+      expect(result.status, code).toBe(1);
+      expect(result.stderr, code).toContain(`sw.js: ${message}`);
+    }
+  });
+
+  it('still forbids fetch in every other script', () => {
+    const result = check(build({ js: 'fetch("/x");' }));
+    expect(result.stderr).toContain('assets/index-abc.js: uses fetch');
+  });
+
+  it.each([
+    ['is missing', { omit: ['sw.js'] }, 'sw.js is missing from the build'],
+    [
+      'has no build manifest',
+      { serviceWorker: 'self.addEventListener("fetch", () => {});' },
+      'has no build manifest',
+    ],
+    [
+      'has an unparsable build manifest',
+      { serviceWorker: '/* @build */ {"cache": } /* @end */' },
+      'build manifest is not valid JSON',
+    ],
+    [
+      'has a cache name not derived from content',
+      { serviceWorker: worker(PRECACHED, '', 'shortcuts-doctor-dev') },
+      'no content-derived cache name',
+    ],
+    [
+      'forgets a file, so the app would not work offline',
+      { serviceWorker: worker(PRECACHED.filter(file => file !== '/icon-512.png')) },
+      'does not precache /icon-512.png, so the app would not work offline',
+    ],
+    [
+      'precaches a file that is not in the build',
+      { serviceWorker: worker([...PRECACHED, '/ghost.js']) },
+      'precaches /ghost.js, which is not in the build',
+    ],
+    [
+      'precaches a path that climbs out',
+      { serviceWorker: worker([...PRECACHED, '/../secret']) },
+      'suspicious path "/../secret"',
+    ],
+    [
+      'precaches another origin',
+      { serviceWorker: worker([...PRECACHED, '//cdn.example.invalid/a.js']) },
+      'suspicious path "//cdn.example.invalid/a.js"',
+    ],
+    [
+      'precaches with a query string',
+      { serviceWorker: worker([...PRECACHED, '/assets/index-abc.js?x=1']) },
+      'suspicious path',
+    ],
+    [
+      'lists a file twice',
+      { serviceWorker: worker([...PRECACHED, '/icon-192.png']) },
+      'precache list has duplicates',
+    ],
+  ] satisfies [string, Build, string][])('fails when sw.js %s', (_label, options, message) => {
+    const result = check(build(options));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(message);
+  });
+});
+
+describe('web app manifest', () => {
+  it.each([
+    ['is missing', { omit: ['manifest.webmanifest'] }, 'manifest.webmanifest is missing'],
+    ['is not JSON', { manifest: '{nope' }, 'manifest.webmanifest is not valid JSON'],
+    [
+      'has no name',
+      { manifest: JSON.stringify({ ...JSON.parse(GOOD_MANIFEST), name: undefined }) },
+      'manifest.webmanifest has no name',
+    ],
+    [
+      'names an icon that is not in the build',
+      {
+        omit: ['icon-512.png'],
+        serviceWorker: worker(PRECACHED.filter(file => file !== '/icon-512.png')),
+      },
+      'icon "/icon-512.png" is not in the build',
+    ],
+    [
+      'has no maskable icon',
+      {
+        manifest: JSON.stringify({
+          ...JSON.parse(GOOD_MANIFEST),
+          icons: JSON.parse(GOOD_MANIFEST).icons.slice(0, 2),
+        }),
+      },
+      'has no 512x512 maskable icon',
+    ],
+  ] satisfies [string, Build, string][])('fails when it %s', (_label, options, message) => {
+    const result = check(build(options));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(message);
+  });
+});
+
+describe('the service worker’s CSP exception', () => {
+  const swRule =
+    "/sw.js\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'none'; connect-src 'self'\n";
+  const withoutSwRule = realHeaders.slice(0, realHeaders.indexOf('/sw.js'));
+  const withSwRule = (rule: string): string => `${withoutSwRule}${rule}`;
+
+  it('accepts the shipped rule, which detaches the page policy and sets its own', () => {
+    expect(realHeaders).toContain(swRule);
+    expect(check(build({ headers: withSwRule(swRule) })).status).toBe(0);
+  });
+
+  it('rejects headers with no /sw.js rule, which would leave the worker unable to precache', () => {
+    const result = check(build({ headers: withoutSwRule }));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('_headers has no /sw.js rule');
+  });
+
+  it.each([
+    [
+      'sets a policy without detaching the page one, so both would apply',
+      "/sw.js\n  Content-Security-Policy: default-src 'none'; connect-src 'self'\n",
+      '/sw.js sets a CSP without detaching the page policy first',
+    ],
+    [
+      'detaches the page policy and sets nothing',
+      '/sw.js\n  ! Content-Security-Policy\n',
+      '/sw.js detaches the CSP but sets no replacement',
+    ],
+    [
+      'lets the worker connect to another origin',
+      "/sw.js\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'none'; connect-src 'self' https://cdn.example.invalid\n",
+      'connect-src allows "https://cdn.example.invalid"',
+    ],
+    [
+      'lets the worker connect anywhere',
+      "/sw.js\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'none'; connect-src *\n",
+      'connect-src allows "*"',
+    ],
+    [
+      'forgets default-src',
+      "/sw.js\n  ! Content-Security-Policy\n  Content-Security-Policy: connect-src 'self'\n",
+      "/sw.js CSP: default-src must be 'none'",
+    ],
+    [
+      'denies the worker its own origin, so it could not precache',
+      "/sw.js\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'none'; connect-src 'none'\n",
+      "/sw.js CSP: connect-src must be 'self'",
+    ],
+    [
+      'allows inline script in the worker policy',
+      "/sw.js\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'\n",
+      'script-src allows "\'unsafe-inline\'"',
+    ],
+    [
+      'detaches another required header for the worker',
+      `${swRule}  ! X-Content-Type-Options\n`,
+      '/sw.js removes x-content-type-options',
+    ],
+  ])('rejects a rule that %s', (_label, rule, message) => {
+    const result = check(build({ headers: withSwRule(rule) }));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(message);
+  });
+
+  it('grants the exception to /sw.js and nowhere else', () => {
+    for (const path of ['/index.html', '/assets/*', '/sw.js/', '/*.js']) {
+      const rule = `${path}\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'none'; connect-src 'self'\n`;
+      const result = check(build({ headers: `${withSwRule(swRule)}${rule}` }));
+      expect(result.status, path).toBe(1);
+      expect(result.stderr, path).toContain(`_headers ${path} removes content-security-policy`);
+    }
   });
 });

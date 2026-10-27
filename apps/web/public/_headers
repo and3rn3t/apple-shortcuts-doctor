@@ -9,3 +9,10 @@
   Permissions-Policy: accelerometer=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), microphone=(), midi=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
+
+# The service worker has to fetch the files it precaches, so it gets its own policy. Every matching
+# rule applies, so the page policy above must be detached first (checked with `wrangler dev`).
+# scripts/check-web-build.mjs allows this one exception and nothing wider.
+/sw.js
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'none'; connect-src 'self'

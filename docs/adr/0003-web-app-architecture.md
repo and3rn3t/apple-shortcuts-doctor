@@ -33,6 +33,22 @@ dev`), so a path that matches two rules gets two Content-Security-Policy headers
   enforce both; a more specific rule can't relax this policy. Relaxing it for one path (a service
   worker, in #37) means detaching the header first with `! Content-Security-Policy` and then
   setting the replacement, which also keeps the other headers.
+- **Works offline through a small, hand-written service worker** (`apps/web/sw/sw.js`).
+  - The build (`build/service-worker-plugin.ts`) fills in a cache name derived from the content of
+    every file and the list of the build's files, and writes `dist/sw.js`. The worker precaches
+    that list on install, serves exactly those files cache-first, answers every navigation with
+    the cached app, and on activation deletes every older cache.
+  - It **never caches anything else**: no runtime caching, and it declines every request that is
+    not a same-origin GET for a precached path (including `blob:` downloads). Exports are read in
+    the page and never requested, so they never pass through it.
+  - _Why not `vite-plugin-pwa`:_ the worker is about 40 lines, and a generator would add a
+    dependency (and Workbox's runtime-caching machinery) to code whose whole value is that it does
+    almost nothing. The unit tests run the real source in a sandbox with a fake Cache API.
+  - _CSP:_ the worker has to `fetch` its own files, so `/sw.js` is the one path that detaches the
+    page policy and sets `default-src 'none'; connect-src 'self'`. `scripts/check-web-build.mjs`
+    allows that single exception, requires the rule to detach (a stacked policy would leave both
+    enforced), and requires the precache list to match `dist` exactly. `fetch` is allowed in
+    `sw.js` and nowhere else.
 - **Deployed from CI on release tags** to `shortcuts.andernet.dev` (custom domain route in
   `apps/web/wrangler.jsonc`) with `wrangler deploy`. Nothing is deployed from a developer
   machine.
