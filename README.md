@@ -34,7 +34,9 @@ Given an unsigned Shortcut export (JSON, XML plist, or binary plist), it produce
 | CLI                    | 🟡 internal  | [`packages/cli/`](packages/cli/) (npm release planned, M1)        |
 | Web app                | ⬜ planned   | `apps/web/`: client-side only, file never leaves the browser (M2) |
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for what's next.
+See the [milestones](https://github.com/and3rn3t/apple-shortcuts-doctor/milestones) and
+[issues](https://github.com/and3rn3t/apple-shortcuts-doctor/issues) for what's next
+([docs/ROADMAP.md](docs/ROADMAP.md) explains how they are organized).
 
 ## Usage
 

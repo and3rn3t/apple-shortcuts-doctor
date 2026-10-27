@@ -16,7 +16,8 @@ executing anything**. It ships as:
 2. A **CLI** (`packages/cli/`), to be published to npm in roadmap milestone M1
 3. A **client-side web app** (`apps/web/`, planned for M2) on Cloudflare Workers static assets
 
-Work is pulled from [`docs/ROADMAP.md`](docs/ROADMAP.md). Architecture is in
+Work is pulled from GitHub issues and milestones (see [`docs/ROADMAP.md`](docs/ROADMAP.md) for
+how they are organized; `gh issue list --milestone "v0.3: Works on real exports"`). Architecture is in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Layout
@@ -100,7 +101,7 @@ enforce most of them:
 - Conventional commits: `type(scope): description`, with scopes `core`, `cli`, `skill`, `web`,
   `ci`, `docs` (commitlint)
 - Branch naming: `type/short-description`
-- One logical change per PR; update `CHANGELOG.md` (Unreleased) and `docs/ROADMAP.md` status
-  in the same PR
+- One logical change per PR; update `CHANGELOG.md` (Unreleased) in the same PR and
+  reference the issue it closes (`Closes #N`). Log new ideas and tech debt as issues, not in docs
 - Record architectural decisions in `docs/adr/`
 - Never deploy, publish, or commit unless explicitly asked
