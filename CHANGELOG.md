@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Three catalog identifiers were wrong.** Real exports use `documentpicker.open` (Get File),
+  `file.delete` (Delete Files), and `selectphoto` (Select Photos), not `getfile`, `deletefiles`,
+  and `selectphotos`. These actions were reported only as unknown, so file deletion never got its
+  `destructive` warning. Found by profiling 138 published Shortcuts, where these IDs appear 210,
+  68, and 5 times.
 - Binary plist strings decode with the native `TextDecoder`, about 4× faster. Hostile files that
   stay inside the 64 MiB decoded-byte budget are rejected quickly, and a byte-budget test that
   timed out on Windows CI now passes.

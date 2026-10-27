@@ -18,7 +18,7 @@ var RULE_ENTRIES = [
   ),
   rule("getcurrentlocation", "Get Current Location", "sensitive-input", "Requests location data."),
   rule(
-    "selectphotos",
+    "selectphoto",
     "Select Photos",
     "sensitive-input",
     "Selects photos, which may include location metadata."
@@ -72,7 +72,7 @@ var RULE_ENTRIES = [
   ),
   rule("filter.health.quantity", "Find Health Samples", "sensitive-input", "Reads Health data."),
   rule(
-    "getfile",
+    "documentpicker.open",
     "Get File",
     "sensitive-input",
     "Reads files; the selected scope needs manual review."
@@ -171,7 +171,7 @@ var RULE_ENTRIES = [
     "Runs remote commands; host and code need manual review."
   ),
   rule(
-    "deletefiles",
+    "file.delete",
     "Delete Files",
     "destructive",
     "Can delete files; confirm scope and confirmation behavior."

@@ -7,7 +7,7 @@
     { "WFWorkflowActionIdentifier": "is.workflow.actions.runshellscript", "WFWorkflowActionParameters": { "Script": "echo fixture" } },
     { "WFWorkflowActionIdentifier": "com.example.fixture.intent", "WFWorkflowActionParameters": { "Value": { "OutputUUID": "missing" } } },
     { "WFWorkflowActionIdentifier": "is.workflow.actions.text", "WFWorkflowActionParameters": { "UUID": "A3" } },
-    { "WFWorkflowActionIdentifier": "is.workflow.actions.deletefiles" },
+    { "WFWorkflowActionIdentifier": "is.workflow.actions.file.delete" },
     { "WFWorkflowActionIdentifier": "is.workflow.actions.runworkflow", "WFWorkflowActionParameters": { "WFInput": { "OutputUUID": "A3" } } }
   ]
 }

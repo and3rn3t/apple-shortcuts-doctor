@@ -93,7 +93,7 @@
 		</dict>
 		<dict>
 			<key>WFWorkflowActionIdentifier</key>
-			<string>is.workflow.actions.deletefiles</string>
+			<string>is.workflow.actions.file.delete</string>
 		</dict>
 		<dict>
 			<key>WFWorkflowActionIdentifier</key>
