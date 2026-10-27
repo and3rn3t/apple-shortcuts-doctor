@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The rule catalog is now data in `packages/core/src/rules.ts` (`CATALOG`), with each action's
+  Shortcuts title so classifications can be checked. It grows from 18 rules and 17 basic actions
+  to 38 rules (camera, microphone, calendar, reminders, Health, AirDrop, clipboard writes, more
+  network actions, photo deletion) and 70 basic actions (math, dates, text, lists, dictionaries,
+  control flow), which cuts `unknown-action` noise on typical Shortcuts (#27).
+
+### Changed
+
+- `unknown-action` findings now have a `ruleId` of `unknown-apple-action` (an Apple identifier
+  the catalog doesn't cover) or `third-party-action` (an app intent), with separate messages.
+  The `code` is still `unknown-action` and the severity is still `review`, so `--fail-on` is
+  unaffected; consumers that matched `ruleId: "unknown-action"` need updating (#27).
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed

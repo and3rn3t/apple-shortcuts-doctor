@@ -97,7 +97,9 @@ converted to JSON are not supported. Do not bypass signatures or restrictions.
 
 - **Scope:** format inspected, action count, and what was not inspected.
 - **Action walkthrough:** numbered actions and explicit dependencies; mark
-  unknown app actions and unresolved inputs.
+  unknown app actions and unresolved inputs. An `unknown-apple-action` finding
+  is a gap in the inspector's catalog, not evidence of risk; a
+  `third-party-action` finding depends on what that app does with its input.
 - **Potential data flows:** observed sources and sinks; label unproven
   connections and dynamic destinations.
 - **Findings:** action number, evidence, possible impact, confidence, and a
