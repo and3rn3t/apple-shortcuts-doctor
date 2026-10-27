@@ -9,6 +9,8 @@ const USAGE = [
   'Usage: shortcuts-doctor inspect [options] <export-file>',
   '       node inspect-shortcut.mjs [options] -- <export-file>',
   '',
+  "Use '-' as <export-file> to read the export from stdin.",
+  '',
   'Options:',
   '  --format text|json|md     Output format (default: text on a terminal, json when piped)',
   '  --format-version 1|2      JSON report version (default: 2)',
