@@ -229,6 +229,8 @@ function checkHeaders(text) {
       problems.push(`_headers ${rule.pattern} sets ${name} twice`);
     }
   }
+  if (!rules.some(rule => rule.pattern === `/${SERVICE_WORKER}`))
+    problems.push(`_headers has no /${SERVICE_WORKER} rule, so the worker could not precache`);
   const everything = rules.find(rule => rule.pattern === '/*');
   if (!everything) return [...problems, '_headers has no /* rule'];
   const csp = everything.headers.get('content-security-policy');

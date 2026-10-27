@@ -489,6 +489,12 @@ describe('the service worker’s CSP exception', () => {
     expect(check(build({ headers: withSwRule(swRule) })).status).toBe(0);
   });
 
+  it('rejects headers with no /sw.js rule, which would leave the worker unable to precache', () => {
+    const result = check(build({ headers: withoutSwRule }));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('_headers has no /sw.js rule');
+  });
+
   it.each([
     [
       'sets a policy without detaching the page one, so both would apply',
