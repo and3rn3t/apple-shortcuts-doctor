@@ -100,7 +100,8 @@ npm test           # TODO: Replace with your test command
 Maintainers only. A pushed `vX.Y.Z` tag runs [`release.yml`](.github/workflows/release.yml).
 
 1. Set `"version"` to `X.Y.Z` in both `packages/cli/package.json` and
-   `packages/core/package.json` (they move in lockstep).
+   `packages/core/package.json` (they move in lockstep), then run `pnpm build:skill` and commit
+   the regenerated bundle: the CLI version is baked into it, so `pnpm validate` fails otherwise.
 2. Move the `CHANGELOG.md` `[Unreleased]` entries under a new `[X.Y.Z] - YYYY-MM-DD` heading.
 3. Merge that to `main`, then tag the merge commit and push the tag:
 
