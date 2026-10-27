@@ -14,7 +14,7 @@ concerns (reading files, converting plists, argv) live at the edges.
                       └──────┬───────────────┬────────┘
                              │               │
                       ┌──────┴──────┐  ┌─────┴────────┐
-                      │ packages/cli │  │  apps/web    │  planned
+                      │ packages/cli │  │  apps/web    │  in progress
                       │ readExport   │  │  drag & drop │  client-side only
                       │ main(argv)   │  └──────────────┘
                       └──────┬──────┘
@@ -46,6 +46,16 @@ concerns (reading files, converting plists, argv) live at the edges.
 5. **Report**: a `Report` with actions, findings, and fixed limitations. Parameter values and
    UUIDs are never copied in.
 
+## Web data flow
+
+The web app (`apps/web`, [ADR-0003](adr/0003-web-app-architecture.md)) skips the CLI's read step.
+The browser hands it a `File`; everything after that is the same core code:
+
+`File` → `arrayBuffer()` → `parseExport(new Uint8Array(buffer))` → `inspectWorkflow(workflow)` → `Report`
+
+There is no network request after the page loads. The scaffold currently runs this on a built-in
+JSON sample; file input arrives with the inspector UI (#35).
+
 ## Why the skill script is generated
 
 The skill has to stay copyable as a single directory with no `npm install`, while the source
@@ -60,4 +70,5 @@ committed file differs. See [ADR-0001](adr/0001-typescript-core-bundled-skill.md
 | Export file contents    | Untrusted data. Size-bounded, shape-validated, never executed or echoed                                               |
 | File path argument      | Passed as an argv element, never interpolated. Never echoed in errors                                                 |
 | Plist structure         | Depth, value-count, and offset bounds; prototype-less dictionaries; no DTDs, entities beyond the XML five, or UIDs    |
+| Web app page            | CSP `default-src 'none'` with `connect-src 'none'`: the page can open no connection. Checked at build time            |
 | Report consumer (agent) | Report includes action identifiers, which may contain injection attempts. SKILL.md tells agents to treat them as data |
