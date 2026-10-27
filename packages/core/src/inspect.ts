@@ -163,6 +163,32 @@ function unresolvedReferenceFinding(position: number): Finding {
   };
 }
 
+/**
+ * Merges single-action findings that share code, rule, severity, and message into one finding
+ * listing every action, so a rule hit nine times reads as one finding. Findings that already name
+ * several actions (duplicate outputs) describe a relationship between them and stay as they are.
+ * Results are ordered by first action.
+ */
+function groupFindings(findings: Finding[]): Finding[] {
+  const grouped = new Map<string, Finding>();
+  const result: Finding[] = [];
+  for (const finding of findings) {
+    if (finding.actions.length !== 1) {
+      result.push(finding);
+      continue;
+    }
+    const key = JSON.stringify([finding.code, finding.ruleId, finding.severity, finding.message]);
+    const existing = grouped.get(key);
+    if (existing) existing.actions.push(...finding.actions);
+    else {
+      const first = { ...finding, actions: [...finding.actions] };
+      grouped.set(key, first);
+      result.push(first);
+    }
+  }
+  return result.sort((a, b) => (a.actions[0] as number) - (b.actions[0] as number));
+}
+
 function summarize(actions: InspectedAction[], findings: Finding[]): ReportSummary {
   const findingsBySeverity: Record<Severity, number> = { review: 0, warning: 0 };
   for (const finding of findings) findingsBySeverity[finding.severity]++;
@@ -224,12 +250,13 @@ export function inspectWorkflow(workflow: unknown): Report {
       ...references,
     };
   });
+  const grouped = groupFindings(findings);
   return {
     formatVersion: 2,
     actionCount: actions.length,
-    summary: summarize(actions, findings),
+    summary: summarize(actions, grouped),
     actions,
-    findings,
+    findings: grouped,
     limitations: [...LIMITATIONS],
   };
 }

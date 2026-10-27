@@ -395,6 +395,25 @@ function unresolvedReferenceFinding(position) {
     message: "An output reference is missing, ambiguous, or not from an earlier action. Verify it in Shortcuts."
   };
 }
+function groupFindings(findings) {
+  const grouped = /* @__PURE__ */ new Map();
+  const result = [];
+  for (const finding of findings) {
+    if (finding.actions.length !== 1) {
+      result.push(finding);
+      continue;
+    }
+    const key = JSON.stringify([finding.code, finding.ruleId, finding.severity, finding.message]);
+    const existing = grouped.get(key);
+    if (existing) existing.actions.push(...finding.actions);
+    else {
+      const first = { ...finding, actions: [...finding.actions] };
+      grouped.set(key, first);
+      result.push(first);
+    }
+  }
+  return result.sort((a, b) => a.actions[0] - b.actions[0]);
+}
 function summarize(actions, findings) {
   const findingsBySeverity = { review: 0, warning: 0 };
   for (const finding of findings) findingsBySeverity[finding.severity]++;
@@ -449,12 +468,13 @@ function inspectWorkflow(workflow) {
       ...references
     };
   });
+  const grouped = groupFindings(findings);
   return {
     formatVersion: 2,
     actionCount: actions.length,
-    summary: summarize(actions, findings),
+    summary: summarize(actions, grouped),
     actions,
-    findings,
+    findings: grouped,
     limitations: [...LIMITATIONS]
   };
 }
