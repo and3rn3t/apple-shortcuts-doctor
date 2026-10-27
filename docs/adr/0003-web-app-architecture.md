@@ -22,8 +22,13 @@ the whole engine client-side.
   and ships local CSS only. The flow is `File` → `arrayBuffer` → `parseExport` →
   `inspectWorkflow`, entirely in the page.
 - **Response headers from `public/_headers`.** A strict Content-Security-Policy (including
-  `connect-src 'none'`) and related headers are served from Vite's `public/_headers` file
-  (added in #36), so the policy ships with the assets.
+  `connect-src 'none'`) and related headers are served from Vite's `public/_headers` file, so the
+  policy ships with the assets. `scripts/check-web-build.mjs` runs after every web build and
+  fails on a CSP that allows anything beyond `'none'`, `'self'`, and `data:`, and on any network
+  API, inline script, or external resource in the built files. The Vite module-preload polyfill
+  is off because it calls `fetch()`. Cloudflare applies every matching `_headers` rule and joins
+  repeated headers, so a more specific rule can't relax this policy; relaxing it for one path
+  (a service worker, in #37) means detaching the header with `! Content-Security-Policy` first.
 - **Deployed from CI on release tags** to `shortcuts.andernet.dev` (custom domain route in
   `apps/web/wrangler.jsonc`) with `wrangler deploy`. Nothing is deployed from a developer
   machine.
