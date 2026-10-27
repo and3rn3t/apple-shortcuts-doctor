@@ -4,6 +4,9 @@ Static inspection for Apple Shortcuts exports. Shortcuts Doctor explains what a 
 what data it could expose, and why it might have stopped working, **without running it**.
 
 [![CI](https://github.com/and3rn3t/apple-shortcuts-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/and3rn3t/apple-shortcuts-doctor/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/shortcuts-doctor)](https://www.npmjs.com/package/shortcuts-doctor)
+[![License: MIT](https://img.shields.io/github/license/and3rn3t/apple-shortcuts-doctor)](LICENSE)
+[![Node](https://img.shields.io/node/v/shortcuts-doctor)](https://nodejs.org)
 
 ## What it does
 
@@ -28,17 +31,28 @@ Given an unsigned Shortcut export (JSON, XML plist, or binary plist), it produce
 
 ## Surfaces
 
-| Surface                | Status       | Location                                                          |
-| ---------------------- | ------------ | ----------------------------------------------------------------- |
-| Agent skill (OpenClaw) | ✅ available | [`skills/shortcuts-doctor/`](skills/shortcuts-doctor/)            |
-| CLI                    | 🟡 internal  | [`packages/cli/`](packages/cli/) (npm release planned, M1)        |
-| Web app                | ⬜ planned   | `apps/web/`: client-side only, file never leaves the browser (M2) |
+| Surface                | Status       | Location                                                                    |
+| ---------------------- | ------------ | --------------------------------------------------------------------------- |
+| Agent skill (OpenClaw) | ✅ available | [`skills/shortcuts-doctor/`](skills/shortcuts-doctor/)                      |
+| CLI                    | ✅ available | [`shortcuts-doctor` on npm](https://www.npmjs.com/package/shortcuts-doctor) |
+| Web app                | ⬜ planned   | `apps/web/`: client-side only, file never leaves the browser (M2)           |
 
 See the [milestones](https://github.com/and3rn3t/apple-shortcuts-doctor/milestones) and
 [issues](https://github.com/and3rn3t/apple-shortcuts-doctor/issues) for what's next
 ([docs/ROADMAP.md](docs/ROADMAP.md) explains how they are organized).
 
 ## Usage
+
+### From npm
+
+```bash
+npx shortcuts-doctor inspect /absolute/path/export.json
+npx shortcuts-doctor inspect --format md --fail-on warning export.json
+```
+
+Requires Node.js 22 or newer. Plist exports (the usual Shortcuts export format) are decoded with
+macOS's built-in `plutil`; on Linux and Windows only JSON exports work for now. See the
+[CLI README](packages/cli/README.md) for all options, exit codes, and a CI example.
 
 ### As an agent skill
 

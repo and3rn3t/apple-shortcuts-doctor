@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1419"/>
+      <stop offset="1" stop-color="#1a2332"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1280" height="8" fill="url(#accent)"/>
+
+  <!-- Left: title block -->
+  <text x="80" y="170" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="600" fill="#34d399" letter-spacing="3">SHORTCUTS DOCTOR</text>
+  <text x="80" y="262" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="68" font-weight="700" fill="#f8fafc">See what a</text>
+  <text x="80" y="340" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="68" font-weight="700" fill="#f8fafc">Shortcut does,</text>
+  <text x="80" y="418" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="68" font-weight="700" fill="#38bdf8">without running it.</text>
+  <text x="80" y="486" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" font-size="26" fill="#94a3b8">Static inspection of Apple Shortcuts exports</text>
+
+  <!-- Pills -->
+  <g font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="600" fill="#e2e8f0">
+    <rect x="80" y="528" width="196" height="46" rx="23" fill="#1e293b" stroke="#334155"/>
+    <text x="178" y="558" text-anchor="middle">Never executes</text>
+    <rect x="292" y="528" width="184" height="46" rx="23" fill="#1e293b" stroke="#334155"/>
+    <text x="384" y="558" text-anchor="middle">No network</text>
+    <rect x="492" y="528" width="214" height="46" rx="23" fill="#1e293b" stroke="#334155"/>
+    <text x="599" y="558" text-anchor="middle">No values shown</text>
+  </g>
+
+  <!-- Right: terminal card -->
+  <g>
+    <rect x="740" y="120" width="460" height="400" rx="16" fill="#0b1018" stroke="#334155" stroke-width="2"/>
+    <circle cx="772" cy="152" r="7" fill="#f87171"/>
+    <circle cx="796" cy="152" r="7" fill="#fbbf24"/>
+    <circle cx="820" cy="152" r="7" fill="#34d399"/>
+    <line x1="740" y1="182" x2="1200" y2="182" stroke="#1e293b" stroke-width="2"/>
+    <g font-family="Menlo, 'SF Mono', Monaco, 'Courier New', monospace" font-size="17">
+      <text x="768" y="218" fill="#64748b">$ npx shortcuts-doctor inspect</text>
+      <text x="768" y="262" fill="#94a3b8">8 actions, 9 findings</text>
+      <text x="768" y="306" fill="#fbbf24">REVIEW</text>
+      <text x="846" y="306" fill="#e2e8f0">sensitive-input  #1</text>
+      <text x="768" y="344" fill="#fbbf24">REVIEW</text>
+      <text x="846" y="344" fill="#e2e8f0">outbound  #3</text>
+      <text x="768" y="382" fill="#f87171">WARNING</text>
+      <text x="856" y="382" fill="#e2e8f0">code-execution  #4</text>
+      <text x="768" y="420" fill="#f87171">WARNING</text>
+      <text x="856" y="420" fill="#e2e8f0">destructive  #7</text>
+      <text x="768" y="458" fill="#f87171">WARNING</text>
+      <text x="856" y="458" fill="#e2e8f0">unresolved-reference  #8</text>
+      <text x="768" y="498" fill="#64748b">not a safety verdict</text>
+    </g>
+  </g>
+</svg>

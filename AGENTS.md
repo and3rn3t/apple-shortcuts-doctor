@@ -13,7 +13,7 @@ reports actions, explicit data dependencies, privacy-relevant findings, and repa
 executing anything**. It ships as:
 
 1. An **OpenClaw agent skill** (`skills/shortcuts-doctor/`), the primary distribution today
-2. A **CLI** (`packages/cli/`), to be published to npm in roadmap milestone M1
+2. A **CLI** (`packages/cli/`), published to npm as `shortcuts-doctor`
 3. A **client-side web app** (`apps/web/`, planned for M2) on Cloudflare Workers static assets
 
 Work is pulled from GitHub issues and milestones (see [`docs/ROADMAP.md`](docs/ROADMAP.md) for
