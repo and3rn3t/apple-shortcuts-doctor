@@ -14,7 +14,7 @@ reports actions, explicit data dependencies, privacy-relevant findings, and brok
 
 1. An **OpenClaw agent skill** (`skills/shortcuts-doctor/`), the primary distribution today
 2. A **CLI** (`packages/cli/`), published to npm as `shortcuts-doctor`
-3. A **client-side web app** (`apps/web/`, planned for milestone v0.4) on Cloudflare Workers static assets
+3. A **client-side web app** (`apps/web/`, milestone v0.4) on Cloudflare Workers static assets
 
 Work is pulled from GitHub issues and milestones (see [`docs/ROADMAP.md`](docs/ROADMAP.md) for
 how they are organized; `gh issue list --milestone "v0.3: Works on real exports"`). Architecture is in
