@@ -17,17 +17,21 @@ on:
     tags:
       - 'v*.*.*'
 
-permissions:
-  contents: write
+# Each job declares only what it needs.
+permissions: {}
 
 jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
 
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
       - name: Check tag matches package versions
         run: |
@@ -46,7 +50,8 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          # No cache: a cache written by a PR run must never reach a published artifact.
+          package-manager-cache: false
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         env:
@@ -80,6 +85,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
@@ -87,7 +94,8 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          # No cache: a cache written by a PR run must never reach a published artifact.
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -127,5 +135,6 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Install from npm and inspect the fixtures
         run: scripts/verify-published.sh "${GITHUB_REF_NAME#v}"

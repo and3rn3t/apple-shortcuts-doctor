@@ -73,6 +73,11 @@ test(cart): add edge case tests for empty cart
 - The packed npm tarball (`pnpm smoke:pack`) on Node 22 and 24: only `dist/`, `README.md`,
   `package.json`, and `LICENSE` ship, the bin is executable with a shebang, and it inspects a
   fixture in each format (JSON, XML plist, binary plist) with the expected exit codes and `--version`.
+- The workflows themselves: [actionlint](https://github.com/rhysd/actionlint) for syntax and
+  expressions, [zizmor](https://docs.zizmor.sh) for security (credential persistence, permissions,
+  cache poisoning, injection, risky action pins). Run them locally with `actionlint` and
+  `uvx zizmor .github/workflows`. Pin new actions by full commit SHA, set
+  `persist-credentials: false` on checkouts that don't push, and grant permissions per job.
 
 ## Pull Request Process
 
