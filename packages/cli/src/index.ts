@@ -3,9 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { main } from './main.ts';
 
 // Public API of the bundled skill script (inspect-shortcut.mjs).
-export { inspectWorkflow, MAX_BYTES } from '@shortcuts-doctor/core';
+export { inspectWorkflow, MAX_BYTES, parseExport } from '@shortcuts-doctor/core';
 export { main } from './main.ts';
-export { convertWithPlutil, parseExport } from './plutil.ts';
 export { readExport } from './read-export.ts';
 
 function isEntrypoint(): boolean {

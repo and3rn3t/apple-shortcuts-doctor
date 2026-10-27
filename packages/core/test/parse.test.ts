@@ -49,11 +49,15 @@ describe('export decoding', () => {
     }
   );
 
-  it('rejects plists when no converter is available', () => {
-    expect(() => parseExport(bytes('<plist/>'))).toThrow('Supply a JSON workflow export');
-    expect(() =>
-      parseExport(bytes('<plist/>'), { plistUnavailableMessage: 'Fixed platform message.' })
-    ).toThrow('Fixed platform message.');
+  it('decodes plists with the built-in decoder by default', () => {
+    const xml = '<plist><dict><key>WFWorkflowActions</key><array/></dict></plist>';
+    expect(parseExport(bytes(xml))).toEqual(workflow());
+  });
+
+  it('replaces built-in decoder errors with a content-free message', () => {
+    const decode = (): unknown => parseExport(bytes('<plist><string>private value</plist>'));
+    expect(decode).toThrow('Cannot decode plist.');
+    expect(decode).not.toThrow('private value');
   });
 
   it('replaces converter errors with a content-free message', () => {
@@ -61,7 +65,7 @@ describe('export decoding', () => {
       throw new Error('Unexpected value <string>private plist value</string>');
     });
     const decode = (): unknown => parseExport(bytes('<plist/>'), { convertPlist });
-    expect(decode).toThrow('Cannot decode plist as JSON.');
+    expect(decode).toThrow('Cannot decode plist.');
     expect(decode).not.toThrow('private plist value');
   });
 

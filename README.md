@@ -89,8 +89,8 @@ npx shortcuts-doctor inspect --format md --fail-on warning export.json
 cat export.json | npx shortcuts-doctor inspect -   # read from stdin
 ```
 
-Requires Node.js 22 or newer. Plist exports (the usual Shortcuts export format) are decoded with
-macOS's built-in `plutil`; on Linux and Windows only JSON exports work for now. See the
+Requires Node.js 22 or newer and works the same on macOS, Linux, and Windows: plist exports are
+decoded in pure TypeScript, with no subprocesses. See the
 [CLI README](packages/cli/README.md) for all options, exit codes, and a CI example.
 
 ### As an agent skill
@@ -106,7 +106,7 @@ node skills/shortcuts-doctor/scripts/inspect-shortcut.mjs -- /absolute/path/expo
 ```
 
 Output is a JSON report on stdout (`--format text|json|md`; text is the default on a terminal; `--format-version 1` selects the legacy JSON shape; schema in `schema/report.v2.json`). `--fail-on review|warning` exits `2` when findings reach that severity (add `--quiet` to suppress the report). Exit code `1` means the file was unreadable, unsupported, or
-malformed. Plist exports need macOS (`/usr/bin/plutil`); JSON works anywhere.
+malformed.
 
 ## Development
 
@@ -125,7 +125,7 @@ pnpm validate        # everything CI runs, incl. bundle drift check
 
 ```text
 packages/core/   @shortcuts-doctor/core: browser-safe parsing + inspection engine (TypeScript)
-packages/cli/    Node entrypoint: file reading, plutil plist conversion, argv handling
+packages/cli/    Node entrypoint: bounded file/stdin reading, argv handling
 skills/          The distributable skill; scripts/inspect-shortcut.mjs is GENERATED from packages/
 tests/           Integration tests against the bundled script, plus shared fixtures
 docs/            Roadmap, architecture, ADRs
