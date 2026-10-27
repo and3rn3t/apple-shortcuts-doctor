@@ -1,4 +1,4 @@
-import { ACTION_PREFIX, BASIC_ACTIONS, RULES } from './rules.ts';
+import { ACTION_PREFIX, BASIC_ACTIONS, isAppleIdentifier, RULES } from './rules.ts';
 import type {
   ActionCategory,
   Finding,
@@ -124,19 +124,24 @@ function collectReferences(
   return { dependsOn: [...dependsOn].sort((a, b) => a - b), unresolvedReferenceCount };
 }
 
+/** Unknown Apple actions are catalog gaps; third-party intents depend on the app that provides them. */
+function unknownActionFinding(identifier: string, position: number): Finding {
+  const apple = isAppleIdentifier(identifier);
+  return {
+    code: 'unknown-action',
+    ruleId: apple ? 'unknown-apple-action' : 'third-party-action',
+    severity: 'review',
+    actions: [position],
+    message: apple
+      ? 'Apple action not in the rule catalog. Check what it reads, changes, or sends.'
+      : 'Third-party app action. Its behavior depends on the app; check the app, its permissions, and the data it receives.',
+  };
+}
+
 function classificationFinding(identifier: string, position: number): Finding | undefined {
   const rule = RULES.get(identifier);
   if (!rule && BASIC_ACTIONS.has(identifier)) return undefined;
-  if (!rule) {
-    return {
-      code: 'unknown-action',
-      ruleId: 'unknown-action',
-      severity: 'review',
-      actions: [position],
-      message:
-        'Unrecognized action. Check its app, availability, permissions, and behavior manually.',
-    };
-  }
+  if (!rule) return unknownActionFinding(identifier, position);
   const isHighRisk = rule.category === 'code-execution' || rule.category === 'destructive';
   return {
     code: rule.category,
