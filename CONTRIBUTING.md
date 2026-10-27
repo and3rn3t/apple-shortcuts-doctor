@@ -62,6 +62,15 @@ docs: update contributing guide
 test(cart): add edge case tests for empty cart
 ```
 
+## What CI checks
+
+- `pnpm validate` on Ubuntu and macOS: lint, format, types, tests with coverage thresholds, and
+  skill bundle drift.
+- The skill bundle on Node 22, the oldest supported runtime.
+- The packed npm tarball (`pnpm smoke:pack`) on Node 22 and 24: only `dist/`, `README.md`,
+  `package.json`, and `LICENSE` ship, the bin is executable with a shebang, and it inspects a
+  fixture with the expected exit codes.
+
 ## Pull Request Process
 
 1. Fill out the [PR template](.github/pull_request_template.md) completely
