@@ -9,6 +9,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Pending entries live in changelog.d/ (see its README); a release assembles them here. -->
 
+## [0.4.0] - 2026-10-27
+
+### Added
+
+- The release workflow verifies what it published: it waits for npm to serve the new version,
+  installs it into an empty project, and checks `--version`, every fixture format, and the SLSA
+  provenance attestation (`scripts/verify-published.sh`).
+- The web app ships a strict Content-Security-Policy and related headers in `apps/web/public/_headers`
+  (`default-src 'none'`, `connect-src 'none'`, no inline scripts or styles, no framing), so the page
+  can open no connection. `pnpm validate` now also runs `scripts/check-web-build.mjs`, which fails
+  the build on any network API, inline or external resource, or CSP that allows more than
+  `'none'`, `'self'`, and `data:` (#36).
+- The release workflow can deploy the web app to Cloudflare Workers and verify the live site
+  (`deploy-web`, opt-in via `DEPLOY_WEB`). `scripts/verify-deployed.mjs` requires every built file
+  to be served byte-for-byte with its `_headers` headers. CI validates the deploy configuration
+  with `wrangler deploy --dry-run`. Setup steps are in CONTRIBUTING.
+- `apps/web/README.md` explains how the web app keeps the file in the browser and how to develop it.
+- A Playwright end-to-end suite for the web app, run in CI (`web-e2e`) and locally with
+  `pnpm test:e2e`. In real Chromium, against `wrangler dev` with the shipped headers, it checks
+  that the served CSP matches `public/_headers` and is enforced, that inspecting JSON, XML plist,
+  and binary plist exports (and refused files) makes no request and stores nothing, keyboard-only
+  use, drag and drop, and an axe accessibility scan of the empty page, a report, and an error in
+  both color themes.
+- The web app can inspect an export: choose a file with a keyboard-reachable button, or drop one
+  on the page. The file is read in the browser, refused before reading if it is over 4 MiB, and
+  inspected with the same core code as the CLI (JSON, XML plist, binary plist). Errors show core's
+  fixed, content-free messages; a signed `.shortcut` file also links to "Getting an export". For
+  now it shows the action and finding counts; the full report view follows (#35).
+- `@shortcuts-doctor/core` exports `isSignedExport(bytes)`.
+- The web build guard rejects `localStorage`, `sessionStorage`, and `indexedDB`, so an inspected
+  export can't outlive the tab.
+- The web report has a "Download Markdown report" button that saves exactly the Markdown the CLI
+  prints, as `shortcuts-doctor-report.md`, through a local blob: nothing is uploaded, and the
+  name of the inspected file is never reused. Tested in Chromium under the strict CSP (#37).
+- The web app works offline and can be installed. A small service worker, generated at build time,
+  precaches the app's own files and serves exactly those from the cache; it never caches anything
+  else, and the exports you inspect never pass through it. A web app manifest and icons (including
+  a maskable one and an Apple touch icon) make it installable. Verified in Chromium: it reloads,
+  inspects an export, and downloads the report with the network off, and the cache holds only the
+  build's files before and after (#37, [ADR-0003](docs/adr/0003-web-app-architecture.md)).
+- The web build guard checks that the worker precaches exactly the build's files, that the manifest's
+  icons exist, and that `/sw.js` is the only path that replaces the page's CSP, with a policy that
+  allows connecting to its own origin and nothing else.
+- The web app shows the full report for an inspected export: a summary, findings grouped by
+  severity and kind (each grouped finding lists every action it covers as links), the numbered
+  actions with links to the actions they use, an "unresolved reference" count, core's limitations,
+  and a persistent note that the report is not a safety verdict. Identifiers are rendered as
+  text only, and focus moves to the report when it appears (#35).
+- `@shortcuts-doctor/core` exports `displayIdentifier(identifier)`, the sanitiser its text and
+  Markdown renderers already used.
+- `apps/web` scaffold: a Vite + React app, deployable as Cloudflare Workers static assets, that
+  runs the core inspector in the browser on a built-in sample (#34).
+
+### Changed
+
+- Changelog entries are now fragments in `changelog.d/`, assembled into `CHANGELOG.md` at release
+  by `pnpm changelog release X.Y.Z`. Concurrent PRs no longer conflict on `CHANGELOG.md`, which
+  GitHub can't auto-resolve (it ignores `merge=union`). `pnpm validate` checks every fragment.
+- CodeQL runs one analysis instead of two. Its `javascript` extractor already covers TypeScript,
+  so the separate `typescript` job repeated the same 201 rules with the same results.
+- Findings from the same rule are now grouped: when one rule matches several actions, the report
+  has a single finding whose `actions` lists all of them, in order of first action. On a real
+  35-action Shortcut this turns 11 findings into 3 (nine identical Health findings become one).
+  `summary.findingsBySeverity`, the text summary, and the `--fail-on` note count grouped findings,
+  so JSON consumers will see lower counts and longer `actions` arrays. Which Shortcuts fail a
+  `--fail-on` threshold is unchanged (#72).
+- The web app sets explicit background, text, and link colors instead of relying on the browser's
+  dark-canvas default, so contrast is the same everywhere and can be measured.
+- Type-checking of the web app is split so that `src` is checked without Node's types: app code
+  can no longer reach for Node globals by accident (tests, the build plugin, and e2e have their own
+  configs).
+
+### Fixed
+
+- `pnpm validate` (and the pre-push hook) no longer lint, format-check, or run the tests of Claude
+  Code worktrees checked out under `.claude/worktrees/`, which made it fail in the main checkout
+  whenever one existed.
+
+### Security
+
+- CI lints every workflow with actionlint and zizmor. Fixing their findings: checkouts no longer
+  leave the GitHub token in `.git/config`, the release workflow grants `contents: write` only to
+  the job that creates the GitHub Release, and release builds never restore a dependency cache, so
+  a cache written by a pull request can't reach a published package.
+
 ## [0.3.1] - 2026-10-27
 
 Fixes found by checking 0.3.0 against 138 real, published Shortcuts.
