@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Pass `-` as the export file to read it from stdin, with the same 4 MiB limit. An interactive
+  terminal on stdin exits `1` with a message instead of hanging (#26).
+
 - `--version` / `-v` prints the CLI version (baked in at build time) and `-h` is an alias for
   `--help` (#25).
 

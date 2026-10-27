@@ -67,6 +67,7 @@ See the [milestones](https://github.com/and3rn3t/apple-shortcuts-doctor/mileston
 ```bash
 npx shortcuts-doctor inspect /absolute/path/export.json
 npx shortcuts-doctor inspect --format md --fail-on warning export.json
+cat export.json | npx shortcuts-doctor inspect -   # read from stdin
 ```
 
 Requires Node.js 22 or newer. Plist exports (the usual Shortcuts export format) are decoded with
