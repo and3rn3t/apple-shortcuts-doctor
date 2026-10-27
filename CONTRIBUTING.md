@@ -161,6 +161,35 @@ npm publishing runs only when the `PUBLISH_NPM` repository variable is `true`. A
 into an empty project, and checks `--version`, every fixture format, and the provenance
 attestation. Run the same check yourself with `scripts/verify-published.sh X.Y.Z`.
 
+### Deploying the web app
+
+The same tag also deploys the web app to <https://shortcuts.andernet.dev> when the `DEPLOY_WEB`
+repository variable is `true`. The `deploy-web` job builds `apps/web`, runs the build guard,
+deploys with wrangler, then runs `scripts/verify-deployed.mjs`, which requires every built file to
+be served byte-for-byte with the headers in `apps/web/public/_headers` (it retries for up to 5
+minutes). A deploy that serves anything else, such as content injected at the edge, fails the
+release.
+
+One-time setup (maintainer, in the Cloudflare and GitHub UIs; never paste the token anywhere else):
+
+1. **Cloudflare token.** Dashboard → Manage Account → Account API Tokens → Create Token → use the
+   _Edit Cloudflare Workers_ template. Limit _Account Resources_ to this account only and _Zone
+   Resources_ to the `andernet.dev` zone only. It needs Workers Scripts: Edit on the account and
+   Workers Routes: Edit on the zone. Copy the token once; Cloudflare doesn't show it again.
+2. **GitHub environment.** Repo → Settings → Environments → New environment
+   `cloudflare-production`. Under _Deployment branches and tags_, allow only the tag pattern
+   `v*.*.*`. Optionally add yourself as a required reviewer to approve each deploy.
+3. **Secret and variables.** In that environment, add the secret `CLOUDFLARE_API_TOKEN`
+   and the variable `CLOUDFLARE_ACCOUNT_ID` (your account ID, from the dashboard URL or the
+   account's Workers overview). Then add the repository variable `DEPLOY_WEB=true`.
+
+The first deploy creates the Worker, the DNS record and the certificate for the hostname; it fails
+if `shortcuts.andernet.dev` already has a conflicting DNS record. CI checks the deploy
+configuration on every pull request with `wrangler deploy --dry-run`, which needs no credentials.
+Re-run a failed deploy from the Actions tab; deploying the same build twice is harmless. Check the
+live site yourself with `node scripts/verify-deployed.mjs https://shortcuts.andernet.dev apps/web/dist`
+after `pnpm --filter @shortcuts-doctor/web build`.
+
 ## AI-Assisted Development
 
 This repository includes configuration files for AI coding assistants (Copilot, Cursor, Windsurf, Cline, Claude Code). These files define project conventions so AI tools produce consistent, high-quality code.

@@ -139,6 +139,11 @@ jobs:
           HUSKY: 0
       - name: Build the web app
         run: pnpm --filter @shortcuts-doctor/web build
+      - name: Check the deploy configuration
+        # Validates wrangler.jsonc and the assets directory without credentials or network.
+        run: pnpm --filter @shortcuts-doctor/web exec wrangler deploy --dry-run --outdir "$RUNNER_TEMP/wrangler-dry-run"
+        env:
+          WRANGLER_SEND_METRICS: 'false'
       - name: Install Chromium
         run: pnpm --filter @shortcuts-doctor/web exec playwright install --with-deps chromium
       - name: Run the end-to-end tests
