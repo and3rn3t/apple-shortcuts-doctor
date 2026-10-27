@@ -17,11 +17,24 @@ describe('export decoding', () => {
     expect(() => parseExport(bytes('{"private payload":'))).not.toThrow('private payload');
   });
 
-  it.each(['AEA1signed-private-content', 'not an export', ''])(
+  it('names signed .shortcut (AEA) containers and points to the export guide', () => {
+    const convertPlist = vi.fn();
+    const decode = (): unknown =>
+      parseExport(bytes('AEA1signed-private-content'), { convertPlist });
+    expect(decode).toThrow('Signed .shortcut files are not decoded');
+    expect(decode).toThrow('"Getting an export"');
+    expect(decode).not.toThrow('private-content');
+    expect(convertPlist).not.toHaveBeenCalled();
+  });
+
+  it.each(['not an export', 'AEA0private', ''])(
     'rejects unsupported containers without invoking anything: %j',
     text => {
       const convertPlist = vi.fn();
-      expect(() => parseExport(bytes(text), { convertPlist })).toThrow('Unsupported export');
+      const decode = (): unknown => parseExport(bytes(text), { convertPlist });
+      expect(decode).toThrow('Unsupported export');
+      expect(decode).toThrow('"Getting an export"');
+      expect(decode).not.toThrow('private');
       expect(convertPlist).not.toHaveBeenCalled();
     }
   );
@@ -36,11 +49,15 @@ describe('export decoding', () => {
     }
   );
 
-  it('rejects plists when no converter is available', () => {
-    expect(() => parseExport(bytes('<plist/>'))).toThrow('Supply a JSON workflow export');
-    expect(() =>
-      parseExport(bytes('<plist/>'), { plistUnavailableMessage: 'Fixed platform message.' })
-    ).toThrow('Fixed platform message.');
+  it('decodes plists with the built-in decoder by default', () => {
+    const xml = '<plist><dict><key>WFWorkflowActions</key><array/></dict></plist>';
+    expect(parseExport(bytes(xml))).toEqual(workflow());
+  });
+
+  it('replaces built-in decoder errors with a content-free message', () => {
+    const decode = (): unknown => parseExport(bytes('<plist><string>private value</plist>'));
+    expect(decode).toThrow('Cannot decode plist.');
+    expect(decode).not.toThrow('private value');
   });
 
   it('replaces converter errors with a content-free message', () => {
@@ -48,7 +65,7 @@ describe('export decoding', () => {
       throw new Error('Unexpected value <string>private plist value</string>');
     });
     const decode = (): unknown => parseExport(bytes('<plist/>'), { convertPlist });
-    expect(decode).toThrow('Cannot decode plist as JSON.');
+    expect(decode).toThrow('Cannot decode plist.');
     expect(decode).not.toThrow('private plist value');
   });
 
