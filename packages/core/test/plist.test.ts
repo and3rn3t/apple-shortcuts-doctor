@@ -330,7 +330,8 @@ function tryParse(bytes: Uint8Array): string {
     expect([
       DECODE_ERROR,
       'Invalid JSON export. Supply a complete workflow dictionary.',
-      'Unsupported export. Signed containers are not decoded; supply unsigned plist or JSON.',
+      'Unsupported export. Supply an unsigned plist or JSON export; see "Getting an export" in the Shortcuts Doctor README.',
+      'Signed .shortcut files are not decoded, and signatures are never bypassed. See "Getting an export" in the Shortcuts Doctor README.',
     ]).toContain(message);
     return message;
   }

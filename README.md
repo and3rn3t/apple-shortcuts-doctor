@@ -29,6 +29,44 @@ Given an unsigned Shortcut export (JSON, XML plist, or binary plist), it produce
   An empty findings list doesn't mean the Shortcut is safe.
 - Signed `.shortcut` containers aren't decoded, and signatures are never bypassed.
 
+## Getting an export
+
+Shortcuts Doctor reads **unsigned** workflow files: JSON, XML plist, or binary plist. To check a
+file, look at its first bytes: `head -c 8 file.shortcut` prints `AEA1…` for a signed file and
+`bplist00` or `<?xml` for an unsigned one.
+
+| Source                                                             | Works? | Notes                                                                                                             |
+| ------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| **Share → Export File** (iPhone, iPad) or **File → Export…** (Mac) | No     | Always **signed** (`AEA1`), whether you pick _Anyone_ or _People Who Know Me_. Shortcuts Doctor says so and stops |
+| A workflow plist or JSON you generate or keep in a repository      | Yes    | For example the input you pass to `shortcuts sign`. This is the main CI use case                                  |
+| An iCloud link's unsigned copy                                     | Yes    | See the steps below. Sharing a link **publishes** the Shortcut to anyone who has the link                         |
+
+Checked on current macOS and iOS in October 2026. Older `.shortcut` files from before signing
+existed work if they start with `bplist00`.
+
+### From an iCloud link
+
+1. In Shortcuts, choose **Share → Copy iCloud Link** (on a Mac, right-click the shortcut). The
+   link ends in an ID: `https://www.icloud.com/shortcuts/<id>`.
+2. Download the record's `shortcut` asset, which is the unsigned binary plist (its
+   `signedShortcut` asset is signed and won't work). The asset URL contains a `${f}` placeholder
+   for a file name:
+
+   ```bash
+   url=$(curl -s https://www.icloud.com/shortcuts/api/records/<id> | python3 -c 'import json, sys; print(json.load(sys.stdin)["fields"]["shortcut"]["value"]["downloadURL"].replace("${f}", "shortcut.plist"))')
+   curl -sL -o shortcut.plist "$url"
+   ```
+
+3. Inspect it: `npx shortcuts-doctor inspect shortcut.plist`.
+
+Before you share a link for a Shortcut that holds private text, tokens, or URLs, remove them in
+the Shortcuts app or work from a redacted copy. Shortcuts Doctor itself never contacts iCloud.
+
+**Why signed files aren't decoded:** a signature is how Shortcuts proves who made a file. The
+inspector won't strip it, and it won't extract the payload without verifying the signature.
+Read-only inspection with the signature checked is being researched in
+[#57](https://github.com/and3rn3t/apple-shortcuts-doctor/issues/57).
+
 ## Surfaces
 
 | Surface                | Status       | Location                                                                    |
