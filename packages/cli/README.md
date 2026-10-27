@@ -41,6 +41,11 @@ WARNING code-execution (#4): Runs shell commands; embedded code is not inspected
 Severity (`review`, `warning`) orders your manual review. An empty findings list does not mean a
 Shortcut is safe.
 
+A rule that matches several actions is reported once, listing every action:
+`REVIEW sensitive-input (#4, #7, #10): Reads Health data.` The finding counts in the summary line,
+in the JSON `summary`, and in the `--fail-on` note count these grouped findings, not individual
+actions. Which findings reach a `--fail-on` threshold is unchanged.
+
 ## Options
 
 | Option                      | Description                                                        |
