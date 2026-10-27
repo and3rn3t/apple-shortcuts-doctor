@@ -17,6 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Getting an export" docs in the README, SKILL.md, and CLI README: which sources give an
   inspectable file, and why signed files aren't decoded (#28).
 
+### Added
+
+- `--version` / `-v` prints the CLI version (baked in at build time) and `-h` is an alias for
+  `--help` (#25).
+
+### Fixed
+
+- Unrecognized options now exit `1` with `Unknown option: <name>. Run --help for usage.` instead
+  of `Cannot read the supplied export file.` Only the option name is printed, never its value (#25).
+
+### Changed
+
+- The CLI parses arguments with `node:util` `parseArgs` in strict mode. Unknown options and
+  `--flag=value` on boolean flags now print usage and exit `1` instead of being treated as file
+  names; `--option=value` syntax works for value options (#32).
+
 ### Fixed
 
 - The release workflow now fails if the pushed tag doesn't match the package versions, and the
