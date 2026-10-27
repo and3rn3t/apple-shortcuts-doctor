@@ -11,22 +11,25 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 ## Development Setup
 
-<!-- TODO: Replace these steps with your project's actual setup instructions. -->
+Requires Node 24 (see `.nvmrc`) and pnpm. Use pnpm, not npm.
 
 ```bash
-# Clone your fork
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
-cd YOUR_REPO
-
-# Install dependencies
-npm install        # TODO: Replace with your install command
-
-# Run tests
-npm test           # TODO: Replace with your test command
-
-# Start development server
-npm run dev        # TODO: Replace with your dev command
+git clone https://github.com/YOUR_USERNAME/apple-shortcuts-doctor.git
+cd apple-shortcuts-doctor
+pnpm install
+pnpm test       # unit + bundle integration tests
+pnpm validate   # everything CI runs; also the pre-push hook
 ```
+
+After changing anything under `packages/*/src`, run `pnpm build:skill` and commit the regenerated
+`skills/shortcuts-doctor/scripts/inspect-shortcut.mjs` with it.
+
+## Finding work
+
+The roadmap is GitHub [milestones](https://github.com/and3rn3t/apple-shortcuts-doctor/milestones)
+and [issues](https://github.com/and3rn3t/apple-shortcuts-doctor/issues). Pick an open issue from
+the earliest milestone, reference it in your PR (`Closes #N`), and add an entry under
+`[Unreleased]` in `CHANGELOG.md`. Log new ideas and tech debt as issues rather than in docs.
 
 ## Branch Naming
 
@@ -91,7 +94,8 @@ This project uses shared code style guidelines enforced through:
 Run the linter before submitting:
 
 ```bash
-npm run lint       # TODO: Replace with your lint command
+pnpm lint
+pnpm format
 ```
 
 ## Testing
@@ -100,8 +104,12 @@ All new code should include tests. Follow the patterns documented in:
 
 - [Testing instructions](.github/instructions/testing.instructions.md) — Unit test patterns and conventions
 
+Fixtures must be synthetic: use `.invalid` domains and obviously fake values, and never commit a
+real personal Shortcut. Any test that touches parameter data needs a "does not leak" assertion.
+
 ```bash
-npm test           # TODO: Replace with your test command
+pnpm test
+pnpm test:coverage
 ```
 
 ## Releasing
@@ -151,6 +159,6 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ## Questions?
 
-<!-- TODO: Add your preferred communication channel. -->
-
-Open a [GitHub Discussion](https://github.com/YOUR_ORG/YOUR_REPO/discussions) or file an issue.
+Open a [GitHub Discussion](https://github.com/and3rn3t/apple-shortcuts-doctor/discussions) or
+file an [issue](https://github.com/and3rn3t/apple-shortcuts-doctor/issues). Report security
+problems privately as described in the [security policy](SECURITY.md).

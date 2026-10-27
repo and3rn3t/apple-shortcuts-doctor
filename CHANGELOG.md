@@ -62,6 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Docs now claim only what the tool does today (repair hints and "why it stopped working" are
+  marked as planned for v0.6), link milestones instead of internal M1/M2 labels, and
+  CONTRIBUTING has real setup, test, and roadmap instructions in place of template TODOs (#29).
+
 - The CLI parses arguments with `node:util` `parseArgs` in strict mode. Unknown options and
   `--flag=value` on boolean flags now print usage and exit `1` instead of being treated as file
   names; `--option=value` syntax works for value options (#32).
