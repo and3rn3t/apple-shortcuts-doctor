@@ -58,17 +58,46 @@ describe('inspector input', () => {
     );
   });
 
-  it('inspects a file dropped on the drop zone and styles it while dragging over', async () => {
+  it('inspects a file dropped on the drop zone and clears the highlight on drop', async () => {
     const { container } = render(<App />);
     const zone = container.querySelector('.dropzone') as HTMLElement;
+    fireEvent.dragEnter(zone);
     fireEvent.dragOver(zone);
     expect(zone.className).toContain('dragging');
-    fireEvent.dragLeave(zone);
-    expect(zone.className).not.toContain('dragging');
     fireEvent.drop(zone, {
       dataTransfer: { files: [fileOf([fixture('mixed-actions.json')], 'a.json')] },
     });
     expect(await screen.findByTestId('summary')).toBeTruthy();
+    expect(zone.className).not.toContain('dragging');
+  });
+
+  it('keeps the highlight while a drag moves between the zone and its children', () => {
+    const { container } = render(<App />);
+    const zone = container.querySelector('.dropzone') as HTMLElement;
+    const paragraph = zone.querySelector('p') as HTMLElement;
+    const button = screen.getByRole('button', { name: 'Choose a file' });
+    // Browsers fire dragenter on the element being entered before dragleave on the one being left.
+    fireEvent.dragEnter(zone);
+    fireEvent.dragEnter(paragraph);
+    fireEvent.dragLeave(zone);
+    expect(zone.className).toContain('dragging');
+    fireEvent.dragEnter(button);
+    fireEvent.dragLeave(paragraph);
+    expect(zone.className).toContain('dragging');
+    fireEvent.dragLeave(button);
+    expect(zone.className).not.toContain('dragging');
+  });
+
+  it('forgets a cancelled drag, so the next one starts from a clean state', () => {
+    const { container } = render(<App />);
+    const zone = container.querySelector('.dropzone') as HTMLElement;
+    fireEvent.dragEnter(zone);
+    fireEvent.dragEnter(zone.querySelector('p') as HTMLElement);
+    fireEvent.drop(zone, { dataTransfer: { files: [] } });
+    expect(zone.className).not.toContain('dragging');
+    fireEvent.dragEnter(zone);
+    expect(zone.className).toContain('dragging');
+    fireEvent.dragLeave(zone);
     expect(zone.className).not.toContain('dragging');
   });
 

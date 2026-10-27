@@ -60,6 +60,9 @@ export function App(): React.JSX.Element {
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const latest = useRef(0);
+  // dragenter/dragleave bubble from the zone's children, so count them: the highlight clears only
+  // when the pointer has left the zone and all of its children (relatedTarget is null in Safari).
+  const dragDepth = useRef(0);
 
   // A file dropped outside the drop zone would otherwise navigate the page away to the file.
   useEffect(() => {
@@ -87,8 +90,14 @@ export function App(): React.JSX.Element {
     if (file) void inspect(file);
   }
 
+  function onDragLeave(): void {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragging(false);
+  }
+
   function onDrop(event: DragEvent<HTMLDivElement>): void {
     event.preventDefault();
+    dragDepth.current = 0;
     setDragging(false);
     const file = event.dataTransfer.files[0];
     if (file) void inspect(file);
@@ -110,11 +119,15 @@ export function App(): React.JSX.Element {
         <h2 id="inspect-heading">Inspect an export</h2>
         <div
           className={dragging ? 'dropzone dragging' : 'dropzone'}
+          onDragEnter={() => {
+            dragDepth.current++;
+            setDragging(true);
+          }}
           onDragOver={event => {
             event.preventDefault();
             setDragging(true);
           }}
-          onDragLeave={() => setDragging(false)}
+          onDragLeave={onDragLeave}
           onDrop={onDrop}
         >
           <p>Drop an unsigned export here, or</p>
