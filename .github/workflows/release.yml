@@ -7,6 +7,7 @@
 #
 # The first step fails unless the tag matches both package versions.
 # After publishing, verify-npm installs the release from the registry and checks it.
+# deploy-web (opt-in via DEPLOY_WEB) deploys the web app and verifies the live site.
 # Attaches the installable skill directory as a zip. npm publishing of the CLI
 # is opt-in via the PUBLISH_NPM repository variable (see the publish-npm job).
 
@@ -138,3 +139,48 @@ jobs:
           package-manager-cache: false
       - name: Install from npm and inspect the fixtures
         run: scripts/verify-published.sh "${GITHUB_REF_NAME#v}"
+
+  deploy-web:
+    name: Deploy the web app
+    # Opt-in: set repository variable DEPLOY_WEB=true after the Cloudflare setup in
+    # CONTRIBUTING.md#deploying-the-web-app. Independent of npm so either can be switched off.
+    if: vars.DEPLOY_WEB == 'true'
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The environment holds the API token; restrict its deployment branches/tags to v*.*.* there.
+    environment: cloudflare-production
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          standalone: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          # No cache: a cache written by a PR run must never reach a deployed artifact.
+          package-manager-cache: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: 0
+      - name: Build
+        run: pnpm --filter @shortcuts-doctor/web build
+      - name: Check the build keeps the file in the browser
+        run: node scripts/check-web-build.mjs
+      - name: Deploy to Cloudflare Workers
+        # The token is visible to this step only, not to install, build, or verify.
+        run: pnpm --filter @shortcuts-doctor/web run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: 'false'
+      - name: Verify the live site serves this build
+        run: node scripts/verify-deployed.mjs https://shortcuts.andernet.dev apps/web/dist
