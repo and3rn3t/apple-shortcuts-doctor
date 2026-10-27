@@ -168,6 +168,27 @@ describe('main', () => {
     });
   });
 
+  it('accepts --option=value syntax', () => {
+    const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+    expect(main(['--format=md', file])).toBe(0);
+    expect(output(stdout)).toContain('# Shortcuts Doctor report');
+  });
+
+  it.each([
+    [['--bogus', 'x']],
+    [['inspect', '--bogus=private-value', 'x']],
+    [['--quiet=yes', 'x']],
+  ])('rejects invalid option %j without echoing argv', args => {
+    expect(main(args)).toBe(1);
+    expect(output(stdout)).toContain('Usage:');
+    expect(output(stdout) + output(stderr)).not.toContain('private-value');
+  });
+
+  it('treats option-like names after -- as file names', () => {
+    expect(main(['--', '--bogus'])).toBe(1);
+    expect(output(stderr)).toBe('Shortcuts Doctor: Cannot read the supplied export file.\n');
+  });
+
   it('rejects unknown formats', () => {
     expect(main(['--format', 'xml', 'x'])).toBe(1);
     expect(output(stdout)).toContain('Usage:');

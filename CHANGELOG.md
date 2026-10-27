@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The CLI parses arguments with `node:util` `parseArgs` in strict mode. Unknown options and
+  `--flag=value` on boolean flags now print usage and exit `1` instead of being treated as file
+  names; `--option=value` syntax works for value options (#32).
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed
