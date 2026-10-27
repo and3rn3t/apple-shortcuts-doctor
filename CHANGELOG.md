@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Docs now claim only what the tool does today (repair hints and "why it stopped working" are
+  marked as planned for v0.6), link milestones instead of internal M1/M2 labels, and
+  CONTRIBUTING has real setup, test, and roadmap instructions in place of template TODOs (#29).
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed

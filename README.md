@@ -1,7 +1,9 @@
 # Shortcuts Doctor 🩺
 
 Static inspection for Apple Shortcuts exports. Shortcuts Doctor explains what a Shortcut does,
-what data it could expose, and why it might have stopped working, **without running it**.
+what data it could expose, and which references look broken, **without running it**. Diagnosing
+why a Shortcut stopped working and suggesting repairs are planned for
+[v0.6](https://github.com/and3rn3t/apple-shortcuts-doctor/milestone/4).
 
 [![CI](https://github.com/and3rn3t/apple-shortcuts-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/and3rn3t/apple-shortcuts-doctor/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/shortcuts-doctor)](https://www.npmjs.com/package/shortcuts-doctor)
@@ -31,11 +33,11 @@ Given an unsigned Shortcut export (JSON, XML plist, or binary plist), it produce
 
 ## Surfaces
 
-| Surface                | Status       | Location                                                                    |
-| ---------------------- | ------------ | --------------------------------------------------------------------------- |
-| Agent skill (OpenClaw) | ✅ available | [`skills/shortcuts-doctor/`](skills/shortcuts-doctor/)                      |
-| CLI                    | ✅ available | [`shortcuts-doctor` on npm](https://www.npmjs.com/package/shortcuts-doctor) |
-| Web app                | ⬜ planned   | `apps/web/`: client-side only, file never leaves the browser (M2)           |
+| Surface                | Status       | Location                                                                                                                              |
+| ---------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent skill (OpenClaw) | ✅ available | [`skills/shortcuts-doctor/`](skills/shortcuts-doctor/)                                                                                |
+| CLI                    | ✅ available | [`shortcuts-doctor` on npm](https://www.npmjs.com/package/shortcuts-doctor)                                                           |
+| Web app                | ⬜ planned   | `apps/web/`: client-side only, file never leaves the browser ([v0.4](https://github.com/and3rn3t/apple-shortcuts-doctor/milestone/2)) |
 
 See the [milestones](https://github.com/and3rn3t/apple-shortcuts-doctor/milestones) and
 [issues](https://github.com/and3rn3t/apple-shortcuts-doctor/issues) for what's next
@@ -66,8 +68,9 @@ npm install. [SKILL.md](skills/shortcuts-doctor/SKILL.md) covers the workflow an
 node skills/shortcuts-doctor/scripts/inspect-shortcut.mjs -- /absolute/path/export.json
 ```
 
-Output is a JSON report on stdout (`--format text|json|md`; text is the default on a terminal; `--format-version 1` selects the legacy JSON shape; schema in `schema/report.v2.json`). `--fail-on review|warning` exits `2` when findings reach that severity (add `--quiet` to suppress the report). Exit code `1` means the file was unreadable, unsupported, or
-malformed. Plist exports need macOS (`/usr/bin/plutil`); JSON works anywhere.
+It takes the same options as the npm CLI: see the [CLI README](packages/cli/README.md) for
+formats, `--fail-on`, and exit codes. JSON output follows
+[`schema/report.v2.json`](schema/report.v2.json).
 
 ## Development
 
