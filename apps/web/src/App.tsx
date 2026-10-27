@@ -3,6 +3,7 @@ import type { ChangeEvent, DragEvent } from 'react';
 import type { Report } from '@shortcuts-doctor/core';
 import { inspectBytes, inspectFile } from './inspect-file.ts';
 import type { Outcome } from './inspect-file.ts';
+import { ReportView } from './ReportView.tsx';
 import { SAMPLE_EXPORT } from './sample.ts';
 
 const GETTING_AN_EXPORT_URL =
@@ -59,6 +60,7 @@ export function App(): React.JSX.Element {
   const [state, setState] = useState<State>({ status: 'idle' });
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const reportHeading = useRef<HTMLHeadingElement>(null);
   const latest = useRef(0);
 
   // A file dropped outside the drop zone would otherwise navigate the page away to the file.
@@ -71,6 +73,11 @@ export function App(): React.JSX.Element {
       window.removeEventListener('drop', ignore);
     };
   }, []);
+
+  // Move keyboard and screen-reader users to the report once it has rendered.
+  useEffect(() => {
+    if (state.status === 'done') reportHeading.current?.focus();
+  }, [state]);
 
   async function inspect(file: File): Promise<void> {
     const request = ++latest.current;
@@ -132,6 +139,9 @@ export function App(): React.JSX.Element {
           <Result state={state} />
         </div>
       </section>
+      {state.status === 'done' ? (
+        <ReportView report={state.report} headingRef={reportHeading} />
+      ) : null}
     </main>
   );
 }

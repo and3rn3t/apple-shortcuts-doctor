@@ -928,7 +928,7 @@ function parseExport(bytes, options = {}) {
 }
 
 // packages/core/src/render.ts
-function sanitizeIdentifier(identifier) {
+function displayIdentifier(identifier) {
   const shortened = identifier.startsWith(ACTION_PREFIX) ? identifier.slice(ACTION_PREFIX.length) : identifier;
   return shortened.replace(/[^\x20-\x7e]/g, "?");
 }
@@ -938,7 +938,7 @@ function markdownCode(text) {
 function actionLine(action, label) {
   const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(", #")}` : "";
   const unresolved = action.unresolvedReferenceCount ? ` (${action.unresolvedReferenceCount} unresolved reference(s))` : "";
-  return `${action.index}. ${label(sanitizeIdentifier(action.identifier))} [${action.category}]${depends}${unresolved}`;
+  return `${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${depends}${unresolved}`;
 }
 function findingLine(finding) {
   const targets = finding.actions.map((index) => `#${index}`).join(", ");

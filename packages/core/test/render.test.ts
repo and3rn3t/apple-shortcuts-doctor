@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Report } from '../src/index.ts';
-import { inspectWorkflow, renderMarkdown, renderReport, renderText } from '../src/index.ts';
+import {
+  displayIdentifier,
+  inspectWorkflow,
+  renderMarkdown,
+  renderReport,
+  renderText,
+} from '../src/index.ts';
 import { action, workflow } from './helpers.ts';
 
 const report = inspectWorkflow(
@@ -13,6 +19,14 @@ const report = inspectWorkflow(
     { WFWorkflowActionIdentifier: 'com.vendor.App.Unknown' }
   )
 );
+
+describe('displayIdentifier', () => {
+  it('drops the Apple prefix, keeps other identifiers whole, and masks non-printable characters', () => {
+    expect(displayIdentifier('is.workflow.actions.getclipboard')).toBe('getclipboard');
+    expect(displayIdentifier('com.example.app.intent')).toBe('com.example.app.intent');
+    expect(displayIdentifier('a\u202eb\u0000c\nd')).toBe('a?b?c?d');
+  });
+});
 
 describe('renderers', () => {
   it('renders text with actions, findings, and limitations', () => {

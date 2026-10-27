@@ -89,6 +89,19 @@ describe('inspector input', () => {
     expect(screen.getByTestId('summary').textContent).toContain('2 findings');
   });
 
+  it('shows the full report and moves focus to it once a file is inspected', async () => {
+    render(<App />);
+    expect(screen.queryByRole('heading', { name: 'Report' })).toBeNull();
+    chooseFile(fileOf([fixture('mixed-actions.json')], 'a.json'));
+    const heading = await screen.findByRole('heading', { name: 'Report' });
+    expect(document.activeElement).toBe(heading);
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThan(8);
+    // A later error removes the stale report instead of leaving it beside the message.
+    chooseFile(fileOf(['nope'], 'bad.json'));
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('heading', { name: 'Report' })).toBeNull();
+  });
+
   it('keeps only the newest result when an earlier, slower file finishes later', async () => {
     render(<App />);
     let finishSlow: (buffer: ArrayBuffer) => void = () => undefined;
