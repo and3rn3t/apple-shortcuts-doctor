@@ -180,6 +180,9 @@ describe('main', () => {
     [['-x', 'file'], '-x'],
     [['--version'.padEnd(60, 'z')], `--version${'z'.repeat(31)}`],
     [['--b\u001bad'], '--b?ad'],
+    [['--constructor', 'x'], '--constructor'],
+    [['--toString', 'x'], '--toString'],
+    [['--__proto__', 'x'], '--__proto__'],
   ])('names unknown option %j without echoing values', (args, name) => {
     expect(main(args)).toBe(1);
     expect(output(stderr)).toBe(

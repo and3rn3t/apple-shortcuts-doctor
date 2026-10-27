@@ -423,7 +423,9 @@ function toFailOn(value) {
 }
 function findUnknownOption(argv) {
   const { tokens } = parseArgs({ ...INSPECT_CONFIG, args: argv, strict: false, tokens: true });
-  const unknown = tokens.find((token) => token.kind === "option" && !(token.name in INSPECT_OPTIONS));
+  const unknown = tokens.find(
+    (token) => token.kind === "option" && !Object.hasOwn(INSPECT_OPTIONS, token.name)
+  );
   if (unknown?.kind !== "option") return void 0;
   const name = unknown.rawName.slice(0, MAX_OPTION_NAME_LENGTH).replace(/[^\w-]/g, "?");
   return { unknownOption: name };
