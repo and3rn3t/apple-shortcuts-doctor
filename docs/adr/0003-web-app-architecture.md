@@ -1,0 +1,37 @@
+# ADR-0003: Web app as Workers static assets, client-side only
+
+- **Status**: accepted
+- **Date**: 2026-10-27
+
+## Context
+
+Milestone v0.4 adds a web surface where people can check a Shortcut without installing the CLI.
+Exports can contain URLs, headers and personal data, so the file must never leave the browser.
+ADR-0002 made core decode plists in pure TypeScript, which removed the last blocker for running
+the whole engine client-side.
+
+## Decision
+
+- **Static assets only.** `apps/web` is a Vite + React build served by Cloudflare Workers static
+  assets (`assets.directory = ./dist`, single-page-application fallback). There is no Worker
+  script (`main` is unset), so there is no server code that could receive a file.
+- **Core consumed as source.** The app depends on `@shortcuts-doctor/core` as `workspace:*`; its
+  `exports` points at `src/index.ts` and Vite compiles it with the app, as with the CLI bundle.
+  Core stays browser-safe (ESLint rejects `node:*` imports in core and in `apps/web/src`).
+- **No network after page load.** The app makes no fetches, loads no external fonts or scripts,
+  and ships local CSS only. The flow is `File` → `arrayBuffer` → `parseExport` →
+  `inspectWorkflow`, entirely in the page.
+- **Response headers from `public/_headers`.** A strict Content-Security-Policy (including
+  `connect-src 'none'`) and related headers are served from Vite's `public/_headers` file
+  (added in #36), so the policy ships with the assets.
+- **Deployed from CI on release tags** to `shortcuts.andernet.dev` (custom domain route in
+  `apps/web/wrangler.jsonc`) with `wrangler deploy`. Nothing is deployed from a developer
+  machine.
+
+## Consequences
+
+- Privacy is enforceable by construction: no backend, and a CSP that blocks outbound requests.
+- Web and CLI share one engine, so findings can't drift between surfaces.
+- No server-side features (sharing links, history). Anything needing storage would require a new
+  ADR and would weaken the privacy claim.
+- Dependencies are pinned exactly and the web build is part of `pnpm validate`.

@@ -29,6 +29,7 @@ packages/core/   @shortcuts-doctor/core: pure TypeScript, browser-safe (no node:
   src/rules.ts     action identifier → category/message catalog
   src/types.ts     Report, Finding, InspectedAction, …
 packages/cli/    Node-only: readExport (bounded read), main(argv)
+apps/web/        @shortcuts-doctor/web: Vite + React, client-side only; Workers static assets (wrangler.jsonc)
 skills/shortcuts-doctor/
   SKILL.md                    skill instructions (user-facing contract)
   scripts/inspect-shortcut.mjs  GENERATED bundle of packages/cli; never edit by hand
@@ -44,7 +45,7 @@ tests/fixtures/               synthetic exports; never commit real personal Shor
 
 - TypeScript 6 (strict, `noUncheckedIndexedAccess`), ESM, `.ts` import extensions, no build step
   for packages (consumed as source). TypeScript 7 is blocked until typescript-eslint supports it.
-- pnpm workspace (`packages/*`). Use pnpm and never npm.
+- pnpm workspace (`packages/*`, `apps/*`). Use pnpm and never npm.
 - Node `>=22` at runtime (bundle target), Node 24 for development (`.nvmrc`)
 - Vitest 5 with v8 coverage thresholds; ESLint 10 + typescript-eslint; Prettier
 
@@ -56,8 +57,9 @@ pnpm test               # vitest: packages/*/test + tests/integration
 pnpm test:coverage      # with thresholds (90% lines)
 pnpm lint               # eslint
 pnpm format             # prettier --write
-pnpm type-check         # tsc per package + tests
+pnpm type-check         # tsc per package + web app + tests
 pnpm build:skill        # regenerate the skill bundle
+pnpm --filter @shortcuts-doctor/web dev    # serve the web app locally (build: same filter, `build`)
 pnpm validate           # lint + format:check + type-check + test:coverage + bundle drift (pre-push and CI)
 ```
 

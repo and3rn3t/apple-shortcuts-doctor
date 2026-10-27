@@ -14,7 +14,7 @@ concerns (reading files, converting plists, argv) live at the edges.
                       └──────┬───────────────┬────────┘
                              │               │
                       ┌──────┴──────┐  ┌─────┴────────┐
-                      │ packages/cli │  │  apps/web    │  planned
+                      │ packages/cli │  │  apps/web    │  in progress
                       │ readExport   │  │  drag & drop │  client-side only
                       │ main(argv)   │  └──────────────┘
                       └──────┬──────┘
@@ -45,6 +45,16 @@ concerns (reading files, converting plists, argv) live at the edges.
    unambiguous actions. Everything else counts as unresolved.
 5. **Report**: a `Report` with actions, findings, and fixed limitations. Parameter values and
    UUIDs are never copied in.
+
+## Web data flow
+
+The web app (`apps/web`, [ADR-0003](adr/0003-web-app-architecture.md)) skips the CLI's read step.
+The browser hands it a `File`; everything after that is the same core code:
+
+`File` → `arrayBuffer()` → `parseExport(new Uint8Array(buffer))` → `inspectWorkflow(workflow)` → `Report`
+
+There is no network request after the page loads. The scaffold currently runs this on a built-in
+JSON sample; file input arrives with the inspector UI (#35).
 
 ## Why the skill script is generated
 

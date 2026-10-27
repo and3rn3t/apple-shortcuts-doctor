@@ -73,11 +73,11 @@ Read-only inspection with the signature checked is being researched in
 
 ## Surfaces
 
-| Surface                | Status       | Location                                                                                                                              |
-| ---------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Agent skill (OpenClaw) | ✅ available | [`skills/shortcuts-doctor/`](skills/shortcuts-doctor/)                                                                                |
-| CLI                    | ✅ available | [`shortcuts-doctor` on npm](https://www.npmjs.com/package/shortcuts-doctor)                                                           |
-| Web app                | ⬜ planned   | `apps/web/`: client-side only, file never leaves the browser ([v0.4](https://github.com/and3rn3t/apple-shortcuts-doctor/milestone/2)) |
+| Surface                | Status         | Location                                                                                                                              |
+| ---------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent skill (OpenClaw) | ✅ available   | [`skills/shortcuts-doctor/`](skills/shortcuts-doctor/)                                                                                |
+| CLI                    | ✅ available   | [`shortcuts-doctor` on npm](https://www.npmjs.com/package/shortcuts-doctor)                                                           |
+| Web app                | 🚧 in progress | `apps/web/`: client-side only, file never leaves the browser ([v0.4](https://github.com/and3rn3t/apple-shortcuts-doctor/milestone/2)) |
 
 See the [milestones](https://github.com/and3rn3t/apple-shortcuts-doctor/milestones) and
 [issues](https://github.com/and3rn3t/apple-shortcuts-doctor/issues) for what's next
