@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--version` / `-v` prints the CLI version (baked in at build time) and `-h` is an alias for
+  `--help` (#25).
+
+### Fixed
+
+- Unrecognized options now exit `1` with `Unknown option: <name>. Run --help for usage.` instead
+  of `Cannot read the supplied export file.` Only the option name is printed, never its value (#25).
+
 ### Changed
 
 - Docs now claim only what the tool does today (repair hints and "why it stopped working" are
