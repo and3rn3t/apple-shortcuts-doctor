@@ -17,11 +17,24 @@ describe('export decoding', () => {
     expect(() => parseExport(bytes('{"private payload":'))).not.toThrow('private payload');
   });
 
-  it.each(['AEA1signed-private-content', 'not an export', ''])(
+  it('names signed .shortcut (AEA) containers and points to the export guide', () => {
+    const convertPlist = vi.fn();
+    const decode = (): unknown =>
+      parseExport(bytes('AEA1signed-private-content'), { convertPlist });
+    expect(decode).toThrow('Signed .shortcut files are not decoded');
+    expect(decode).toThrow('"Getting an export"');
+    expect(decode).not.toThrow('private-content');
+    expect(convertPlist).not.toHaveBeenCalled();
+  });
+
+  it.each(['not an export', 'AEA0private', ''])(
     'rejects unsupported containers without invoking anything: %j',
     text => {
       const convertPlist = vi.fn();
-      expect(() => parseExport(bytes(text), { convertPlist })).toThrow('Unsupported export');
+      const decode = (): unknown => parseExport(bytes(text), { convertPlist });
+      expect(decode).toThrow('Unsupported export');
+      expect(decode).toThrow('"Getting an export"');
+      expect(decode).not.toThrow('private');
       expect(convertPlist).not.toHaveBeenCalled();
     }
   );

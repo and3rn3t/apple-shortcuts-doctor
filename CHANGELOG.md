@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Signed `.shortcut` (AEA) files now get their own error message, and both that and the
+  unsupported-export error point to the new "Getting an export" README section (#28).
+
+### Added
+
+- "Getting an export" docs in the README, SKILL.md, and CLI README: which sources give an
+  inspectable file, and why signed files aren't decoded (#28).
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed

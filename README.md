@@ -29,6 +29,25 @@ Given an unsigned Shortcut export (JSON, XML plist, or binary plist), it produce
   An empty findings list doesn't mean the Shortcut is safe.
 - Signed `.shortcut` containers aren't decoded, and signatures are never bypassed.
 
+## Getting an export
+
+Shortcuts Doctor reads **unsigned** workflow files: JSON, XML plist, or binary plist.
+
+| Source                                                        | Works? | Notes                                                                                                                                                                                                        |
+| ------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Share → Export File** in Shortcuts (iOS 15+, macOS 12+)     | No     | Produces a **signed** `.shortcut` file (an Apple Encrypted Archive). Shortcuts Doctor recognizes it and stops                                                                                                |
+| `.shortcut` files from iOS 14 / macOS 11 or earlier           | Yes    | These were unsigned binary plists                                                                                                                                                                            |
+| A workflow plist or JSON you generate or keep in a repository | Yes    | For example the input you pass to `shortcuts sign`. This is the main CI use case                                                                                                                             |
+| An iCloud share link's unsigned copy                          | Yes    | The link's record (`https://www.icloud.com/shortcuts/api/records/<id>`) has a `fields.shortcut.value.downloadURL` pointing at an unsigned plist. Sharing a link **publishes** the Shortcut to anyone with it |
+
+Before you share a link for a Shortcut that holds private text, tokens, or URLs, remove them in
+the Shortcuts app or work from a redacted copy. Shortcuts Doctor itself never contacts iCloud.
+
+**Why signed files aren't decoded:** a signature is how Shortcuts proves who made a file. The
+inspector won't strip it, and it won't extract the payload without verifying the signature.
+Read-only inspection with the signature checked is being researched in
+[#57](https://github.com/and3rn3t/apple-shortcuts-doctor/issues/57).
+
 ## Surfaces
 
 | Surface                | Status       | Location                                                                    |
