@@ -45,8 +45,8 @@ Exit codes: `0` ok, `1` usage or input error, `2` findings reached the `--fail-o
 
 ## Supported inputs
 
-JSON, XML plist, and binary plist exports, up to 4 MiB and 2000 actions. Plist decoding uses
-macOS `plutil`, so on Linux and Windows only JSON works today. Signed `.shortcut` containers are
+JSON, XML plist, and binary plist exports, up to 4 MiB and 2000 actions, on any OS. Plists are
+decoded in pure TypeScript; nothing is spawned. Signed `.shortcut` containers are
 not decoded, and signatures are never bypassed.
 
 ## Use in CI
@@ -56,7 +56,7 @@ For a repository that versions Shortcut exports. Pin the version so results stay
 ```yaml
 jobs:
   inspect:
-    runs-on: macos-latest # plist exports need macOS plutil
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

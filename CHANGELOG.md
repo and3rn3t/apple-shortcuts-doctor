@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Plist exports (XML and binary) now work on Linux and Windows. They're decoded by a new
+  pure-TypeScript parser in `@shortcuts-doctor/core` with depth, value-count, and offset bounds,
+  so the same file gives the same report on every OS. `<data>` and `<date>` values, which `plutil`
+  couldn't convert, now decode too (#24, [ADR-0002](docs/adr/0002-pure-ts-plist-parser.md)).
+
+### Removed
+
+- The CLI no longer spawns `/usr/bin/plutil`, and the skill bundle no longer exports
+  `convertWithPlutil`. `parseExport` is now core's, with no platform argument (#24).
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed

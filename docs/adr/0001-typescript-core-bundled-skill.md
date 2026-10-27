@@ -1,6 +1,6 @@
 # ADR-0001: TypeScript core with a generated, committed skill bundle
 
-- **Status**: accepted
+- **Status**: accepted (plist decoding amended by [ADR-0002](0002-pure-ts-plist-parser.md))
 - **Date**: 2026-10-18
 
 ## Context

@@ -17,8 +17,8 @@ OpenClaw workspace's `skills/` directory or `~/.openclaw/skills/`. Start a new
 session so OpenClaw discovers the skill. No npm packages or Apple account are
 needed. The inspector requires Node.js 22 or newer.
 
-JSON workflow exports work wherever Node.js is available. Unsigned XML/binary
-plist exports additionally require macOS's built-in `/usr/bin/plutil`. Signed
+JSON and unsigned XML/binary plist exports work wherever Node.js is available.
+The inspector decodes plists itself and never spawns another program. Signed
 `.shortcut` containers, encrypted content, and plist values that cannot be
 converted to JSON are not supported. Do not bypass signatures or restrictions.
 
