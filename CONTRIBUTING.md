@@ -145,7 +145,10 @@ job fails if that version is already on the registry, or if the registry can't b
 - **Version already on npm:** a published version can't be reused. Bump to a new, unpublished
   version and push a new matching tag.
 
-npm publishing runs only when the `PUBLISH_NPM` repository variable is `true`.
+npm publishing runs only when the `PUBLISH_NPM` repository variable is `true`. After publishing, the
+`verify-npm` job waits for the registry to serve the new version (up to 10 minutes), installs it
+into an empty project, and checks `--version`, every fixture format, and the provenance
+attestation. Run the same check yourself with `scripts/verify-published.sh X.Y.Z`.
 
 ## AI-Assisted Development
 

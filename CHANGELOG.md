@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CodeQL runs one analysis instead of two. Its `javascript` extractor already covers TypeScript,
   so the separate `typescript` job repeated the same 201 rules with the same results.
 
+### Added
+
+- The release workflow verifies what it published: it waits for npm to serve the new version,
+  installs it into an empty project, and checks `--version`, every fixture format, and the SLSA
+  provenance attestation (`scripts/verify-published.sh`).
+
 ## [0.3.1] - 2026-10-27
 
 Fixes found by checking 0.3.0 against 138 real, published Shortcuts.

@@ -6,6 +6,7 @@
 #   git push origin vX.Y.Z
 #
 # The first step fails unless the tag matches both package versions.
+# After publishing, verify-npm installs the release from the registry and checks it.
 # Attaches the installable skill directory as a zip. npm publishing of the CLI
 # is opt-in via the PUBLISH_NPM repository variable (see the publish-npm job).
 
@@ -107,3 +108,24 @@ jobs:
           fi
       - name: Publish (prepack builds the bundle)
         run: pnpm --filter shortcuts-doctor publish --no-git-checks
+
+  verify-npm:
+    name: Verify the published package
+    # Install what was just published from the registry, exactly as a user would, so a broken or
+    # unattested publish fails the release instead of looking green.
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+      - name: Install from npm and inspect the fixtures
+        run: scripts/verify-published.sh "${GITHUB_REF_NAME#v}"
