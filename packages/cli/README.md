@@ -77,7 +77,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: npx shortcuts-doctor@0.2 inspect --fail-on warning --quiet shortcuts/my-shortcut.json
+      - run: npx shortcuts-doctor@0.3 inspect --fail-on warning --quiet shortcuts/my-shortcut.json
 ```
 
 ## More
