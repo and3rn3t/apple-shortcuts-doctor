@@ -46,7 +46,7 @@ describe('report v2', () => {
   it('uses catalog names as rule ids without exposing unknown identifiers', () => {
     const ruleIds = sample.findings.map(finding => finding.ruleId);
     expect(ruleIds).toContain('getclipboard');
-    expect(ruleIds).toContain('unknown-action');
+    expect(ruleIds).toContain('third-party-action');
     expect(ruleIds).not.toContain('com.vendor.App.Thing');
   });
 
