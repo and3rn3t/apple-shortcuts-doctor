@@ -17,10 +17,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "tsc -p packages/core && tsc -p packages/cli && tsc -p .",
-    "validate": "pnpm lint && pnpm format:check && pnpm type-check && pnpm build:cli && pnpm test:coverage && pnpm build:skill:check",
+    "validate": "pnpm lint && pnpm format:check && pnpm type-check && pnpm build:cli && pnpm test:coverage && pnpm build:skill:check && pnpm changelog check",
     "prepare": "husky",
     "build:cli": "node scripts/build-cli.mjs",
-    "smoke:pack": "scripts/smoke-pack.sh"
+    "smoke:pack": "scripts/smoke-pack.sh",
+    "changelog": "node scripts/changelog.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

@@ -7,23 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Security
-
-- CI lints every workflow with actionlint and zizmor. Fixing their findings: checkouts no longer
-  leave the GitHub token in `.git/config`, the release workflow grants `contents: write` only to
-  the job that creates the GitHub Release, and release builds never restore a dependency cache, so
-  a cache written by a pull request can't reach a published package.
-
-### Changed
-
-- CodeQL runs one analysis instead of two. Its `javascript` extractor already covers TypeScript,
-  so the separate `typescript` job repeated the same 201 rules with the same results.
-
-### Added
-
-- The release workflow verifies what it published: it waits for npm to serve the new version,
-  installs it into an empty project, and checks `--version`, every fixture format, and the SLSA
-  provenance attestation (`scripts/verify-published.sh`).
+<!-- Pending entries live in changelog.d/ (see its README); a release assembles them here. -->
 
 ## [0.3.1] - 2026-10-27
 

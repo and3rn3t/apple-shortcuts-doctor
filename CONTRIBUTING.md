@@ -28,8 +28,8 @@ After changing anything under `packages/*/src`, run `pnpm build:skill` and commi
 
 The roadmap is GitHub [milestones](https://github.com/and3rn3t/apple-shortcuts-doctor/milestones)
 and [issues](https://github.com/and3rn3t/apple-shortcuts-doctor/issues). Pick an open issue from
-the earliest milestone, reference it in your PR (`Closes #N`), and add an entry under
-`[Unreleased]` in `CHANGELOG.md`. Log new ideas and tech debt as issues rather than in docs.
+the earliest milestone, reference it in your PR (`Closes #N`), and add a changelog fragment in
+[`changelog.d/`](changelog.d/README.md) rather than editing `CHANGELOG.md`, so PRs don't conflict. Log new ideas and tech debt as issues rather than in docs.
 
 ## Branch Naming
 
@@ -128,7 +128,9 @@ Maintainers only. A pushed `vX.Y.Z` tag runs [`release.yml`](.github/workflows/r
 1. Set `"version"` to `X.Y.Z` in both `packages/cli/package.json` and
    `packages/core/package.json` (they move in lockstep), then run `pnpm build:skill` and commit
    the regenerated bundle: the CLI version is baked into it, so `pnpm validate` fails otherwise.
-2. Move the `CHANGELOG.md` `[Unreleased]` entries under a new `[X.Y.Z] - YYYY-MM-DD` heading.
+2. Run `pnpm changelog release X.Y.Z` to assemble the `changelog.d/` fragments into a new
+   `[X.Y.Z] - YYYY-MM-DD` section of `CHANGELOG.md` (it deletes the fragments). Check the result
+   with `pnpm changelog preview` first if you like.
 3. Merge that to `main`, then tag the merge commit and push the tag:
 
    ```bash

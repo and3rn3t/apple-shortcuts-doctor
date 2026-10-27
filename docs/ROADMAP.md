@@ -25,7 +25,7 @@ can't meet this is redesigned or dropped.
 
 1. Pick the highest-priority open issue in the earliest open milestone.
 2. Open a PR that references it (`Closes #N`). Mark the issue `in-progress` if it spans days.
-3. Update `CHANGELOG.md` (Unreleased) in the same PR.
+3. Add a changelog fragment in `changelog.d/` in the same PR (not an edit to `CHANGELOG.md`).
 4. New ideas and debt you find along the way become new issues, not edits to this file.
 
 Shipped history lives in [CHANGELOG.md](../CHANGELOG.md).
