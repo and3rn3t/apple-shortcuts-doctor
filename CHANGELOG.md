@@ -7,73 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [0.3.0] - 2026-10-27
 
-- Signed `.shortcut` (AEA) files now get their own error message, and both that and the
-  unsupported-export error point to the new "Getting an export" README section (#28).
+Works on real exports: plist files on any OS, stdin input, clearer errors, far less rule noise,
+and docs that match what the tool does.
 
 ### Added
 
-- `homepage` and `bugs` fields in the npm package metadata (#33).
-
-- CI packs the npm tarball, installs it into an empty project on Node 22 and 24, and runs the bin.
-  It checks the file list, executable bit, shebang, and exit codes 0, 1, and 2. Run it locally
-  with `pnpm smoke:pack` (#31).
-
+- **Plist exports (XML and binary) now work on Linux and Windows.** A new pure-TypeScript decoder
+  in `@shortcuts-doctor/core` bounds nesting depth, value count, decoded bytes, and every binary
+  offset, and rejects reference cycles, so the same file gives the same report on every OS.
+  `<data>` and `<date>` values, which `plutil` couldn't convert, now decode too (#24,
+  [ADR-0002](docs/adr/0002-pure-ts-plist-parser.md)).
+- Pass `-` as the export file to read it from stdin, with the same 4 MiB limit. An interactive
+  terminal on stdin exits `1` with a message instead of hanging (#26).
+- `--version` / `-v` prints the CLI version (baked in at build time), and `-h` is an alias for
+  `--help` (#25).
 - The rule catalog is now data in `packages/core/src/rules.ts` (`CATALOG`), with each action's
   Shortcuts title so classifications can be checked. It grows from 18 rules and 17 basic actions
   to 38 rules (camera, microphone, calendar, reminders, Health, AirDrop, clipboard writes, more
-  network actions, photo deletion) and 70 basic actions (math, dates, text, lists, dictionaries,
-  control flow), which cuts `unknown-action` noise on typical Shortcuts (#27).
+  network actions, photo deletion) and 70 basic actions. On a real 35-action Shortcut,
+  `unknown-action` findings drop from 22 to 1 (#27).
+- "Getting an export" docs in the README, SKILL.md, and CLI README: app exports are always signed
+  (checked on current iOS and macOS), how to get the unsigned copy from an iCloud link, and why
+  signed files aren't decoded (#28).
+- CI packs the npm tarball, installs it into an empty project on Node 22 and 24, and checks the
+  file list, executable bit, shebang, `--version`, every fixture format, and exit codes. Run it
+  locally with `pnpm smoke:pack` (#31). CI also runs `pnpm validate` on Windows.
+- `homepage` and `bugs` fields in the npm package metadata (#33).
 
 ### Changed
 
 - `unknown-action` findings now have a `ruleId` of `unknown-apple-action` (an Apple identifier
   the catalog doesn't cover) or `third-party-action` (an app intent), with separate messages.
   The `code` is still `unknown-action` and the severity is still `review`, so `--fail-on` is
-  unaffected; consumers that matched `ruleId: "unknown-action"` need updating (#27).
-
-- "Getting an export" docs in the README, SKILL.md, and CLI README: app exports are always signed
-  (checked on current iOS and macOS), how to get the unsigned copy from an iCloud link, and why
-  signed files aren't decoded (#28).
-
-### Added
-
-- Plist exports (XML and binary) now work on Linux and Windows. They're decoded by a new
-  pure-TypeScript parser in `@shortcuts-doctor/core` with depth, value-count, and offset bounds,
-  so the same file gives the same report on every OS. `<data>` and `<date>` values, which `plutil`
-  couldn't convert, now decode too (#24, [ADR-0002](docs/adr/0002-pure-ts-plist-parser.md)).
+  unaffected. **Consumers that matched `ruleId: "unknown-action"` need updating** (#27).
+- Signed `.shortcut` (AEA) files get their own error message, and both that and the
+  unsupported-export error point to "Getting an export" (#28).
+- The CLI parses arguments with `node:util` `parseArgs` in strict mode. Unknown options and
+  `--flag=value` on boolean flags exit `1` instead of being treated as file names, and
+  `--option=value` works for value options (#32).
+- Docs claim only what the tool does today (diagnosis and repair suggestions are marked as planned
+  for v0.6), link milestones instead of internal M1/M2 labels, and CONTRIBUTING has real setup,
+  testing, roadmap, and release instructions (#29).
 
 ### Removed
 
-- The CLI no longer spawns `/usr/bin/plutil`, and the skill bundle no longer exports
-  `convertWithPlutil`. `parseExport` is now core's, with no platform argument (#24).
-
-- Pass `-` as the export file to read it from stdin, with the same 4 MiB limit. An interactive
-  terminal on stdin exits `1` with a message instead of hanging (#26).
-
-- `--version` / `-v` prints the CLI version (baked in at build time) and `-h` is an alias for
-  `--help` (#25).
+- The CLI no longer spawns `/usr/bin/plutil`; the product runs no subprocesses. The skill bundle
+  no longer exports `convertWithPlutil`, and `parseExport` is now core's, with no platform
+  argument (#24).
 
 ### Fixed
 
-- Unrecognized options now exit `1` with `Unknown option: <name>. Run --help for usage.` instead
-  of `Cannot read the supplied export file.` Only the option name is printed, never its value (#25).
-
-### Changed
-
-- Docs now claim only what the tool does today (repair hints and "why it stopped working" are
-  marked as planned for v0.6), link milestones instead of internal M1/M2 labels, and
-  CONTRIBUTING has real setup, test, and roadmap instructions in place of template TODOs (#29).
-
-- The CLI parses arguments with `node:util` `parseArgs` in strict mode. Unknown options and
-  `--flag=value` on boolean flags now print usage and exit `1` instead of being treated as file
-  names; `--option=value` syntax works for value options (#32).
-
-### Fixed
-
-- The release workflow now fails if the pushed tag doesn't match the package versions, and the
-  npm job fails if that version is already published instead of skipping quietly (#30).
+- Unrecognized options exit `1` with `Unknown option: <name>. Run --help for usage.` instead of
+  `Cannot read the supplied export file.` Only the option name is printed, never its value (#25).
+- The release workflow fails if the pushed tag doesn't match the package versions, and the npm
+  job fails if that version is already published or the registry can't be checked, instead of
+  skipping quietly (#30).
+- The "Skill on Node 22" CI job was running Node 24; it now runs Node 22 against every fixture
+  format (#24).
 
 ## [0.2.0] - 2026-10-27
 

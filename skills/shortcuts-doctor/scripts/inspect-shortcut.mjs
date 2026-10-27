@@ -1126,7 +1126,7 @@ function inspect(argv) {
     return 1;
   }
   if (args?.version) {
-    process.stdout.write(`${"0.2.0"}
+    process.stdout.write(`${"0.3.0"}
 `);
     return 0;
   }
