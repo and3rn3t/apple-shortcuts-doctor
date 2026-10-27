@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { inspectWorkflow } from '@shortcuts-doctor/core';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { inspectWorkflow, renderMarkdown } from '@shortcuts-doctor/core';
 import type { Report } from '@shortcuts-doctor/core';
 import { FINDING_LABEL, FINDING_ORDER } from '../src/labels.ts';
 import { ReportView } from '../src/ReportView.tsx';
@@ -117,6 +117,57 @@ describe('report structure', () => {
     show(reportOf(action('gettext'), action('comment')));
     expect(screen.getByText('No findings. That does not mean this Shortcut is safe.')).toBeTruthy();
     expect(screen.queryAllByRole('heading', { level: 4 })).toHaveLength(0);
+  });
+});
+
+describe('Markdown download', () => {
+  const report = reportOf(
+    action('getclipboard', { UUID: 'private-uuid-1', WFNote: 'private-note-value' }),
+    action('downloadurl', { WFURL: 'https://private.invalid/x' })
+  );
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('saves exactly the Markdown the CLI prints, under a fixed name, through a local blob', async () => {
+    vi.useFakeTimers();
+    const created: Blob[] = [];
+    const createObjectURL = vi.fn((blob: Blob) => {
+      created.push(blob);
+      return 'blob:local/test';
+    });
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL }));
+    let downloaded: { href: string; download: string } | undefined;
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      downloaded = { href: this.href, download: this.download };
+    });
+    show(report);
+    fireEvent.click(screen.getByRole('button', { name: 'Download Markdown report' }));
+    expect(downloaded).toEqual({ href: 'blob:local/test', download: 'shortcuts-doctor-report.md' });
+    expect(created).toHaveLength(1);
+    expect(created[0]?.type).toBe('text/markdown;charset=utf-8');
+    const text = await created[0]?.text();
+    expect(text).toBe(renderMarkdown(report));
+    for (const secret of ['private-uuid-1', 'private-note-value', 'private.invalid']) {
+      expect(text).not.toContain(secret);
+    }
+    // The temporary link is gone, and the blob is released shortly after.
+    expect(document.querySelector('a[download]')).toBeNull();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:local/test');
+    vi.unstubAllGlobals();
+  });
+
+  it('is a real button, so the keyboard can use it', () => {
+    show(report);
+    const button = screen.getByRole('button', { name: 'Download Markdown report' });
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('type')).toBe('button');
   });
 });
 

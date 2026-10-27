@@ -64,7 +64,8 @@ The browser hands it a `File` from the picker or a drop; everything after that i
    and then by kind, the numbered actions with links between dependent actions, and core's fixed
    limitations under a "not a safety verdict" note. Identifiers pass through core's
    `displayIdentifier` and are rendered as text, never as HTML. Focus moves to the report heading
-   once it renders.
+   once it renders. **Download Markdown report** saves core's `renderMarkdown(report)` (byte for
+   byte what the CLI prints) through a local blob URL under a fixed file name.
 
 There is no network request after the page loads and nothing is stored: the build guard
 (`scripts/check-web-build.mjs`) rejects network and storage APIs in the bundle, and the CSP forbids
