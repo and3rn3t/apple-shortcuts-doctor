@@ -3,8 +3,8 @@ import type { Finding, InspectedAction, Report } from './types.ts';
 
 export type ReportFormat = 'text' | 'json' | 'md';
 
-/** Action identifiers are untrusted; drop control characters and neutralize Markdown syntax. */
-function sanitizeIdentifier(identifier: string): string {
+/** Action identifiers are untrusted: shorten the Apple prefix and replace anything non-printable. */
+export function displayIdentifier(identifier: string): string {
   const shortened = identifier.startsWith(ACTION_PREFIX)
     ? identifier.slice(ACTION_PREFIX.length)
     : identifier;
@@ -20,7 +20,7 @@ function actionLine(action: InspectedAction, label: (text: string) => string): s
   const unresolved = action.unresolvedReferenceCount
     ? ` (${action.unresolvedReferenceCount} unresolved reference(s))`
     : '';
-  return `${action.index}. ${label(sanitizeIdentifier(action.identifier))} [${action.category}]${depends}${unresolved}`;
+  return `${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${depends}${unresolved}`;
 }
 
 function findingLine(finding: Finding): string {
