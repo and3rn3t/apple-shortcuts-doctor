@@ -127,6 +127,7 @@ const COMMANDS: Readonly<Record<string, Command>> = { inspect };
 /** Runs the CLI for the given argv (without node and script) and returns the process exit code. */
 export function main(argv: string[]): number {
   const [name, ...rest] = argv;
-  const command = name === undefined ? undefined : COMMANDS[name];
+  // Own keys only, so file names such as `__proto__` or `toString` are never treated as commands.
+  const command = name !== undefined && Object.hasOwn(COMMANDS, name) ? COMMANDS[name] : undefined;
   return command ? command(rest) : inspect(argv);
 }

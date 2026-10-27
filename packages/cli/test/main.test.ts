@@ -184,6 +184,14 @@ describe('main', () => {
     expect(output(stdout) + output(stderr)).not.toContain('private-value');
   });
 
+  it.each(['__proto__', 'toString', 'constructor', 'hasOwnProperty'])(
+    'treats the inherited property name %j as a file, not a subcommand',
+    name => {
+      expect(main([name])).toBe(1);
+      expect(output(stderr)).toBe('Shortcuts Doctor: Cannot read the supplied export file.\n');
+    }
+  );
+
   it('treats option-like names after -- as file names', () => {
     expect(main(['--', '--bogus'])).toBe(1);
     expect(output(stderr)).toBe('Shortcuts Doctor: Cannot read the supplied export file.\n');

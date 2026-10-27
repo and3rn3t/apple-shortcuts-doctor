@@ -474,7 +474,7 @@ function inspect(argv) {
 var COMMANDS = { inspect };
 function main(argv) {
   const [name, ...rest] = argv;
-  const command = name === void 0 ? void 0 : COMMANDS[name];
+  const command = name !== void 0 && Object.hasOwn(COMMANDS, name) ? COMMANDS[name] : void 0;
   return command ? command(rest) : inspect(argv);
 }
 
