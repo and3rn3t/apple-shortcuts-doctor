@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Network and code-loading APIs that must not appear in any shipped script. */
+/** Network, code-loading, and storage APIs that must not appear in any shipped script. */
 const FORBIDDEN_APIS = [
   'fetch',
   'XMLHttpRequest',
@@ -20,6 +20,10 @@ const FORBIDDEN_APIS = [
   'RTCPeerConnection',
   'WebTransport',
   'eval',
+  // The page keeps nothing: an inspected export must not outlive the tab.
+  'localStorage',
+  'sessionStorage',
+  'indexedDB',
 ];
 const FORBIDDEN_CALLS = [/(?<![\w$])Function\s*\(/];
 const HTML_FORBIDDEN_TAGS = ['iframe', 'object', 'embed', 'form', 'base', 'style'];
@@ -243,4 +247,6 @@ if (problems.length) {
   );
   process.exit(1);
 }
-process.stdout.write(`check-web-build: ok (${files} files, no network APIs, strict CSP)\n`);
+process.stdout.write(
+  `check-web-build: ok (${files} files, no network or storage APIs, strict CSP)\n`
+);

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_BYTES, parseExport } from '../src/index.ts';
+import { isSignedExport, MAX_BYTES, parseExport } from '../src/index.ts';
 import { workflow } from './helpers.ts';
 
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
@@ -15,6 +15,13 @@ describe('export decoding', () => {
   it('redacts malformed JSON contents from errors', () => {
     expect(() => parseExport(bytes('{"private payload":'))).toThrow('Invalid JSON export.');
     expect(() => parseExport(bytes('{"private payload":'))).not.toThrow('private payload');
+  });
+
+  it('recognizes signed containers by their AEA1 header only', () => {
+    expect(isSignedExport(bytes('AEA1anything'))).toBe(true);
+    expect(isSignedExport(bytes('AEA0anything'))).toBe(false);
+    expect(isSignedExport(bytes('{"WFWorkflowActions":[]}'))).toBe(false);
+    expect(isSignedExport(new Uint8Array(0))).toBe(false);
   });
 
   it('names signed .shortcut (AEA) containers and points to the export guide', () => {
