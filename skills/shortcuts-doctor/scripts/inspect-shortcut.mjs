@@ -484,7 +484,6 @@ var APPLE_EPOCH_MS = Date.UTC(2001, 0, 1);
 // packages/core/src/plist/binary.ts
 var HEADER_LENGTH = 8;
 var TRAILER_LENGTH = 32;
-var STRING_CHUNK = 8192;
 function fail() {
   throw new Error("Malformed binary plist.");
 }
@@ -512,20 +511,14 @@ function readTrailer(view) {
   if (!valid) fail();
   return trailer;
 }
+var UTF8 = new TextDecoder("utf-8");
+var UTF16_BE = new TextDecoder("utf-16be");
 function decodeAscii(bytes) {
   if (bytes.some((byte) => byte > 127)) fail();
-  return decodeCodeUnits(Array.from(bytes));
+  return UTF8.decode(bytes);
 }
-function decodeUtf16(view, start, length) {
-  const units = Array.from({ length }, (_, index) => view.getUint16(start + index * 2));
-  return decodeCodeUnits(units);
-}
-function decodeCodeUnits(units) {
-  let text = "";
-  for (let index = 0; index < units.length; index += STRING_CHUNK) {
-    text += String.fromCharCode(...units.slice(index, index + STRING_CHUNK));
-  }
-  return text;
+function decodeUtf16(bytes) {
+  return UTF16_BE.decode(bytes);
 }
 var BinaryPlistReader = class {
   bytes;
@@ -642,7 +635,7 @@ var BinaryPlistReader = class {
     const [length, start] = this.readCount(offset, info);
     this.checkRange(start, length * 2);
     this.budget.reserve(length * 2);
-    return decodeUtf16(this.view, start, length);
+    return decodeUtf16(this.bytes.subarray(start, start + length * 2));
   }
   readArray(offset, info, depth) {
     const [count, start] = this.readCount(offset, info);
