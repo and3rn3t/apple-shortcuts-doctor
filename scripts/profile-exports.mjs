@@ -1,32 +1,61 @@
-// Structural profile of Shortcut exports, for format research. Prints counts, key names, Apple
-// enum-like values, and action identifiers; never parameter values, UUIDs, names, or paths.
+// Structural profile of Shortcut exports, for format research. Prints counts, Apple-defined key
+// names, allowlisted Apple enum values, and validated action identifiers; anything else (user
+// keys, parameter values, UUIDs, names, paths) is replaced by a placeholder.
 // Usage: node scripts/profile-exports.mjs <file-or-directory>... > profile.json
 import { readdirSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
+// Import by URL: a Windows drive-letter path is not a valid ESM specifier.
 const bundle = await import(
-  fileURLToPath(new URL('../skills/shortcuts-doctor/scripts/inspect-shortcut.mjs', import.meta.url))
+  new URL('../skills/shortcuts-doctor/scripts/inspect-shortcut.mjs', import.meta.url).href
 );
 const { inspectWorkflow, parseExport, readExport } = bundle;
 
 const EXTENSIONS = new Set(['.shortcut', '.plist', '.json', '.wflow']);
-const SAFE_TOKEN = /^[A-Za-z0-9._-]{1,80}$/;
 const RANGE_KEY = /^\{\d+, ?\d+\}$/;
-/** Top-level keys whose values are Apple enums, versions, or flags rather than user content. */
-const ENUM_KEYS = new Set([
-  'WFWorkflowClientVersion',
-  'WFWorkflowClientRelease',
-  'WFWorkflowMinimumClientVersion',
-  'WFWorkflowMinimumClientVersionString',
-  'WFWorkflowTypes',
-  'WFWorkflowInputContentItemClasses',
-  'WFWorkflowOutputContentItemClasses',
-  'WFQuickActionSurfaces',
-  'WFWorkflowHasOutputFallback',
-  'WFWorkflowHasShortcutInputVariables',
-  'WFWorkflowNoInputBehavior',
+/** Apple's parameter and workflow keys are `WF`-prefixed; the rest of the structure is fixed. */
+const APPLE_KEY = /^(?:Show-)?WF[A-Z][A-Za-z0-9]{0,60}$/;
+const STRUCTURAL_KEYS = new Set([
+  'Value',
+  'Type',
+  'UUID',
+  'OutputUUID',
+  'OutputName',
+  'VariableName',
+  'Aggrandizements',
+  'attachmentsByRange',
+  'string',
+  'GroupingIdentifier',
+  'CustomOutputName',
+  'Input',
+  'ShowHeaders',
+  'Advanced',
+  'PropertyName',
+  'PropertyUserInfo',
+  'CoercionItemClass',
+  'DictionaryKey',
+  'ShowWhenRun',
+  'SelectMultiple',
+  'AppIntentDescriptor',
 ]);
+/** Field-specific shapes of Apple enum values; anything else is reported as `<other>`. */
+const VERSION = /^\d{1,6}(?:\.\d{1,6}){0,4}$/;
+const ENUM_SHAPES = {
+  Type: /^(?:Variable|ActionOutput|ExtensionInput|CurrentDate|Ask|Clipboard|DeviceDetails|WF[A-Za-z]{1,60}Aggrandizement)$/,
+  WFSerializationType: /^WF[A-Z][A-Za-z]{1,60}$/,
+  WFControlFlowMode: /^[0-2]$/,
+  WFWorkflowClientVersion: VERSION,
+  WFWorkflowClientRelease: VERSION,
+  WFWorkflowMinimumClientVersion: VERSION,
+  WFWorkflowMinimumClientVersionString: VERSION,
+  WFWorkflowTypes: /^[A-Za-z]{1,40}$/,
+  WFWorkflowInputContentItemClasses: /^WF[A-Za-z]{0,60}ContentItem$/,
+  WFWorkflowOutputContentItemClasses: /^WF[A-Za-z]{0,60}ContentItem$/,
+  WFQuickActionSurfaces: /^[A-Za-z]{1,40}$/,
+  WFWorkflowHasOutputFallback: /^(?:true|false)$/,
+  WFWorkflowHasShortcutInputVariables: /^(?:true|false)$/,
+  WFWorkflowNoInputBehavior: /^<other>$/,
+};
 /** Parameter keys that carry references or control flow; their presence (not value) is counted. */
 const REFERENCE_KEYS = new Set(['OutputUUID', 'OutputName', 'VariableName', 'Aggrandizements']);
 /** Parameter keys whose values are small Apple enums. */
@@ -48,7 +77,7 @@ const ENUM_PARAMETER_KEYS = new Set(['Type', 'WFSerializationType', 'WFControlFl
  * @property {number[]} actionCounts
  * @property {number} overActionLimit
  * @property {Counts} identifiers
- * @property {Counts} rejectedIdentifiers
+ * @property {number} rejectedIdentifiers
  * @property {Counts} categories
  * @property {Record<string, Counts>} parameterKeysByIdentifier
  * @property {Record<string, Counts>} enumParameterValues
@@ -57,24 +86,39 @@ const ENUM_PARAMETER_KEYS = new Set(['Type', 'WFSerializationType', 'WFControlFl
  */
 
 /**
- * Any value from untrusted content is reduced to a safe token or a placeholder.
+ * A value is printed only if it has the shape Apple uses for that field; otherwise `<other>`.
+ * @param {keyof typeof ENUM_SHAPES} field
  * @param {unknown} value
  * @returns {string}
  */
-function token(value) {
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  return typeof value === 'string' && SAFE_TOKEN.test(value) ? value : '<other>';
+function enumToken(field, value) {
+  const text = typeof value === 'number' || typeof value === 'boolean' ? String(value) : value;
+  return typeof text === 'string' && ENUM_SHAPES[field].test(text) ? text : '<other>';
 }
 
-/** @param {string} key @returns {string} */
+/**
+ * Keys are printed only if Apple defines them; user-defined keys (UUIDs, names) become `<key>`.
+ * @param {string} key
+ * @returns {string}
+ */
 function keyToken(key) {
   if (RANGE_KEY.test(key)) return '{range}';
-  return SAFE_TOKEN.test(key) ? key : '<key>';
+  return APPLE_KEY.test(key) || STRUCTURAL_KEYS.has(key) ? key : '<key>';
+}
+
+/** Prototype-less, so keys such as `constructor` or `__proto__` count like any other. @returns {Counts} */
+function dict() {
+  return /** @type {Counts} */ (Object.create(null));
 }
 
 /** @param {Counts} map @param {string} key @param {number} [by] */
 function count(map, key, by = 1) {
   map[key] = (map[key] ?? 0) + by;
+}
+
+/** @param {Record<string, Counts>} map @param {string} key @returns {Counts} */
+function child(map, key) {
+  return (map[key] ??= dict());
 }
 
 /** @param {unknown} value @returns {string} */
@@ -96,6 +140,7 @@ function isRecord(value) {
 /** @param {string[]} paths @returns {string[]} */
 function listFiles(paths) {
   return paths.flatMap(path => {
+    // statSync/readdirSync errors quote the path; callers replace them with a fixed message.
     if (statSync(path).isDirectory()) {
       return listFiles(readdirSync(path).map(name => join(path, name)));
     }
@@ -117,23 +162,23 @@ function containerOf(bytes) {
 function createProfile() {
   return {
     files: 0,
-    containers: {},
-    decodeErrors: {},
-    inspectErrors: {},
+    containers: dict(),
+    decodeErrors: dict(),
+    inspectErrors: dict(),
     inspected: 0,
-    topLevelKeys: {},
-    topLevelTypes: {},
-    enumValues: {},
+    topLevelKeys: dict(),
+    topLevelTypes: Object.create(null),
+    enumValues: Object.create(null),
     importQuestions: { workflows: 0, questions: 0 },
     actionCounts: [],
     overActionLimit: 0,
-    identifiers: {},
-    rejectedIdentifiers: {},
-    categories: {},
-    parameterKeysByIdentifier: {},
-    enumParameterValues: {},
-    referenceKeys: {},
-    referencePaths: {},
+    identifiers: dict(),
+    rejectedIdentifiers: 0,
+    categories: dict(),
+    parameterKeysByIdentifier: Object.create(null),
+    enumParameterValues: Object.create(null),
+    referenceKeys: dict(),
+    referencePaths: Object.create(null),
   };
 }
 
@@ -142,10 +187,11 @@ function profileTopLevel(workflow, profile) {
   for (const [key, value] of Object.entries(workflow)) {
     const name = keyToken(key);
     count(profile.topLevelKeys, name);
-    count((profile.topLevelTypes[name] ??= {}), typeOf(value));
-    if (!ENUM_KEYS.has(key)) continue;
+    count(child(profile.topLevelTypes, name), typeOf(value));
+    if (!Object.hasOwn(ENUM_SHAPES, key)) continue;
+    const field = /** @type {keyof typeof ENUM_SHAPES} */ (key);
     const values = Array.isArray(value) ? value : [value];
-    for (const item of values) count((profile.enumValues[name] ??= {}), token(item));
+    for (const item of values) count(child(profile.enumValues, key), enumToken(field, item));
   }
   const questions = workflow.WFWorkflowImportQuestions;
   if (Array.isArray(questions) && questions.length) {
@@ -168,17 +214,21 @@ function walkParameters(value, path, serialization, profile) {
   }
   if (!isRecord(value)) return;
   const type =
-    typeof value.WFSerializationType === 'string' ? token(value.WFSerializationType) : undefined;
+    'WFSerializationType' in value
+      ? enumToken('WFSerializationType', value.WFSerializationType)
+      : undefined;
   const scope = type ?? serialization;
   const base = type ? [] : path;
-  for (const [key, child] of Object.entries(value)) {
-    if (ENUM_PARAMETER_KEYS.has(key))
-      count((profile.enumParameterValues[key] ??= {}), token(child));
+  for (const [key, inner] of Object.entries(value)) {
+    if (ENUM_PARAMETER_KEYS.has(key)) {
+      const field = /** @type {'Type' | 'WFSerializationType' | 'WFControlFlowMode'} */ (key);
+      count(child(profile.enumParameterValues, key), enumToken(field, inner));
+    }
     if (REFERENCE_KEYS.has(key)) {
       count(profile.referenceKeys, key);
-      count((profile.referencePaths[scope ?? '<none>'] ??= {}), [...base, key].join('.'));
+      count(child(profile.referencePaths, scope ?? '<none>'), [...base, key].join('.'));
     }
-    walkParameters(child, [...base, keyToken(key)], scope, profile);
+    walkParameters(inner, [...base, keyToken(key)], scope, profile);
   }
 }
 
@@ -199,13 +249,14 @@ function profileActions(actions, profile) {
   for (const action of actions) {
     if (!isRecord(action)) continue;
     const identifier = action.WFWorkflowActionIdentifier;
-    const id =
-      typeof identifier === 'string' && identifier.length <= 200 ? identifier : '<invalid>';
+    // Only identifiers the inspector accepts are named; anything else could be arbitrary text.
+    const valid = typeof identifier === 'string' && identifierAccepted(identifier);
+    if (!valid) profile.rejectedIdentifiers++;
+    const id = valid ? identifier : '<rejected>';
     count(profile.identifiers, id);
-    if (id !== '<invalid>' && !identifierAccepted(id)) count(profile.rejectedIdentifiers, id);
     const parameters = action.WFWorkflowActionParameters;
     if (!isRecord(parameters)) continue;
-    const keys = (profile.parameterKeysByIdentifier[id] ??= {});
+    const keys = child(profile.parameterKeysByIdentifier, id);
     for (const key of Object.keys(parameters)) count(keys, keyToken(key));
     walkParameters(parameters, [], undefined, profile);
   }
@@ -281,7 +332,7 @@ function finalize(profile) {
     result[key] = nested.includes(key)
       ? Object.fromEntries(
           Object.entries(value)
-            .sort()
+            .sort(([a], [b]) => a.localeCompare(b))
             .map(([name, inner]) => [name, sortByCount(/** @type {Counts} */ (inner))])
         )
       : sortByCount(/** @type {Counts} */ (value));
@@ -294,6 +345,14 @@ if (!inputs.length) {
   process.stderr.write('Usage: node scripts/profile-exports.mjs <file-or-directory>...\n');
   process.exit(1);
 }
+/** @type {string[]} */
+let files;
+try {
+  files = listFiles(inputs);
+} catch {
+  process.stderr.write('Cannot read an input path. Check that each path exists and is readable.\n');
+  process.exit(1);
+}
 const profile = createProfile();
-for (const file of listFiles(inputs)) profileFile(file, profile);
+for (const file of files) profileFile(file, profile);
 process.stdout.write(`${JSON.stringify(finalize(profile), null, 2)}\n`);

@@ -16,9 +16,13 @@ against evidence instead of assumptions.
   described in the README's [Getting an export](../../README.md#getting-an-export).
 - **Not committed.** The exports are third-party content, so they stay on the researcher's
   machine. Only the aggregate numbers below are recorded.
-- **Stats only.** `profile-exports.mjs` prints counts, key names, Apple enum values (sanitized to
-  `[A-Za-z0-9._-]`), and action identifiers. It never prints parameter values, UUIDs, names, or
-  paths. An integration test enforces this against the fixtures.
+- **Stats only.** `profile-exports.mjs` prints counts, Apple-defined keys (`WF…` and a fixed set
+  of structural keys), enum values that match the shape Apple uses for that field, and action
+  identifiers the inspector accepts. Anything else (user-defined keys, other values, rejected
+  identifiers) becomes `<key>`, `<other>`, or `<rejected>`, so parameter values, UUIDs, names, and
+  paths are never printed. Integration tests check this against the fixtures and a deliberately
+  hostile export. In this corpus, 0.8% of parameter keys were redacted, almost all of them
+  third-party intent parameters.
 - **Reproduce** with any folder of exports:
 
   ```bash
