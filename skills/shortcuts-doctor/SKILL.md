@@ -69,6 +69,8 @@ converted to JSON are not supported. Do not bypass signatures or restrictions.
    export path. Supply both as data, never interpolate them into shell commands
    or JavaScript source. Double quotes in shell commands do not prevent `$(...)`
    or backtick command substitution. Paths are arguments, never executable content.
+   The inspector also accepts `-` to read stdin, for people piping exports in a
+   terminal or CI. As an agent, keep passing the approved absolute path.
 
 3. On an unsupported, oversized, or malformed file, stop and explain the
    limitation. Ask for an unsigned plist/JSON export if their Shortcuts version
