@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Three catalog identifiers were wrong.** Real exports use `documentpicker.open` (Get File),
+  `file.delete` (Delete Files), and `selectphoto` (Select Photos), not `getfile`, `deletefiles`,
+  and `selectphotos`. These actions were reported only as unknown, so file deletion never got its
+  `destructive` warning. Found by profiling 138 published Shortcuts, where these IDs appear 210,
+  68, and 5 times.
+
 - **Binary plists with 16-byte integers no longer fail to decode.** CoreFoundation stores unsigned
   64-bit numbers, such as a date action's calendar `Unit`, as 16-byte integers even when the
   value is small. 12 of 138 published real-world Shortcuts were rejected by 0.3.0; all 138 now
