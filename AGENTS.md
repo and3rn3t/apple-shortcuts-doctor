@@ -35,6 +35,7 @@ skills/shortcuts-doctor/
 scripts/build-skill.mjs       esbuild bundler (+ --check drift mode)
 scripts/build-cli.mjs         esbuild bundle of the npm bin (packages/cli/dist, gitignored)
 scripts/profile-exports.mjs   stats-only format profile of real exports (docs/research/)
+scripts/changelog.mjs         check / preview / release changelog.d/ fragments into CHANGELOG.md
 tests/integration/            tests against the bundled script, as an installed skill runs it
 tests/fixtures/               synthetic exports; never commit real personal Shortcuts
 ```
@@ -104,7 +105,7 @@ enforce most of them:
 - Conventional commits: `type(scope): description`, with scopes `core`, `cli`, `skill`, `web`,
   `ci`, `docs` (commitlint)
 - Branch naming: `type/short-description`
-- One logical change per PR; update `CHANGELOG.md` (Unreleased) in the same PR and
-  reference the issue it closes (`Closes #N`). Log new ideas and tech debt as issues, not in docs
+- One logical change per PR; add a changelog fragment in `changelog.d/` (see its README; never
+  edit `CHANGELOG.md` directly) and reference the issue it closes (`Closes #N`). Log new ideas and tech debt as issues, not in docs
 - Record architectural decisions in `docs/adr/`
 - Never deploy, publish, or commit unless explicitly asked
