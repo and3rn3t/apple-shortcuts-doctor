@@ -22,11 +22,12 @@ plist exports additionally require macOS's built-in `/usr/bin/plutil`. Signed
 `.shortcut` containers, encrypted content, and plist values that cannot be
 converted to JSON are not supported. Do not bypass signatures or restrictions.
 
-Exports made with **Share → Export File** on iOS 15+ or macOS 12+ are signed and
-will be refused. The project README's "Getting an export" section lists the
-unsigned sources that work (older exports, workflow files kept in a repository,
-and an iCloud link's unsigned copy). Mention that sharing an iCloud link
-publishes the Shortcut, and let the user decide; never fetch it yourself.
+Exports made in the Shortcuts app (**Share → Export File** on iPhone and iPad,
+**File → Export…** on a Mac) are always signed and will be refused. The project
+README's "Getting an export" section lists the unsigned sources that work:
+workflow files kept in a repository, and the unsigned `shortcut` asset of an
+iCloud link's record. Mention that sharing an iCloud link publishes the
+Shortcut, and let the user decide; never fetch it yourself.
 
 ## Safety boundaries
 

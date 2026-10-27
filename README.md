@@ -31,14 +31,33 @@ Given an unsigned Shortcut export (JSON, XML plist, or binary plist), it produce
 
 ## Getting an export
 
-Shortcuts Doctor reads **unsigned** workflow files: JSON, XML plist, or binary plist.
+Shortcuts Doctor reads **unsigned** workflow files: JSON, XML plist, or binary plist. To check a
+file, look at its first bytes: `head -c 8 file.shortcut` prints `AEA1…` for a signed file and
+`bplist00` or `<?xml` for an unsigned one.
 
-| Source                                                        | Works? | Notes                                                                                                                                                                                                        |
-| ------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Share → Export File** in Shortcuts (iOS 15+, macOS 12+)     | No     | Produces a **signed** `.shortcut` file (an Apple Encrypted Archive). Shortcuts Doctor recognizes it and stops                                                                                                |
-| `.shortcut` files from iOS 14 / macOS 11 or earlier           | Yes    | These were unsigned binary plists                                                                                                                                                                            |
-| A workflow plist or JSON you generate or keep in a repository | Yes    | For example the input you pass to `shortcuts sign`. This is the main CI use case                                                                                                                             |
-| An iCloud share link's unsigned copy                          | Yes    | The link's record (`https://www.icloud.com/shortcuts/api/records/<id>`) has a `fields.shortcut.value.downloadURL` pointing at an unsigned plist. Sharing a link **publishes** the Shortcut to anyone with it |
+| Source                                                             | Works? | Notes                                                                                                             |
+| ------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| **Share → Export File** (iPhone, iPad) or **File → Export…** (Mac) | No     | Always **signed** (`AEA1`), whether you pick _Anyone_ or _People Who Know Me_. Shortcuts Doctor says so and stops |
+| A workflow plist or JSON you generate or keep in a repository      | Yes    | For example the input you pass to `shortcuts sign`. This is the main CI use case                                  |
+| An iCloud link's unsigned copy                                     | Yes    | See the steps below. Sharing a link **publishes** the Shortcut to anyone who has the link                         |
+
+Checked on current macOS and iOS in October 2026. Older `.shortcut` files from before signing
+existed work if they start with `bplist00`.
+
+### From an iCloud link
+
+1. In Shortcuts, choose **Share → Copy iCloud Link** (on a Mac, right-click the shortcut). The
+   link ends in an ID: `https://www.icloud.com/shortcuts/<id>`.
+2. Download the record's `shortcut` asset, which is the unsigned binary plist (its
+   `signedShortcut` asset is signed and won't work). The asset URL contains a `${f}` placeholder
+   for a file name:
+
+   ```bash
+   url=$(curl -s https://www.icloud.com/shortcuts/api/records/<id> | python3 -c 'import json, sys; print(json.load(sys.stdin)["fields"]["shortcut"]["value"]["downloadURL"].replace("${f}", "shortcut.plist"))')
+   curl -sL -o shortcut.plist "$url"
+   ```
+
+3. Inspect it: `npx shortcuts-doctor inspect shortcut.plist`.
 
 Before you share a link for a Shortcut that holds private text, tokens, or URLs, remove them in
 the Shortcuts app or work from a redacted copy. Shortcuts Doctor itself never contacts iCloud.

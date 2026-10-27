@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- "Getting an export" docs in the README, SKILL.md, and CLI README: which sources give an
-  inspectable file, and why signed files aren't decoded (#28).
+- "Getting an export" docs in the README, SKILL.md, and CLI README: app exports are always signed
+  (checked on current iOS and macOS), how to get the unsigned copy from an iCloud link, and why
+  signed files aren't decoded (#28).
 
 ### Added
 
