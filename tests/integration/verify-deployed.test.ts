@@ -31,6 +31,10 @@ interface Served {
   status: number;
   body: string;
   headers: Record<string, string>;
+  /** Send part of the body, then drop the connection. */
+  abort?: boolean;
+  /** Wait before responding. */
+  delayMs?: number;
 }
 type Handler = (path: string, request: number) => Served | undefined;
 
@@ -72,8 +76,17 @@ async function serve(handler: Handler): Promise<string> {
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     count += 1;
     const served = handler(request.url ?? '/', count) ?? { status: 404, body: 'nope', headers: {} };
-    response.writeHead(served.status, served.headers);
-    response.end(served.body);
+    const respond = (): void => {
+      if (served.abort) {
+        response.writeHead(served.status, { ...served.headers, 'content-length': '1000' });
+        response.write(served.body);
+        setTimeout(() => response.destroy(), 20);
+        return;
+      }
+      response.writeHead(served.status, served.headers);
+      response.end(served.body);
+    };
+    setTimeout(respond, served.delayMs ?? 0);
   });
   servers.push(server);
   await new Promise<void>(done => server.listen(0, '127.0.0.1', done));
@@ -170,6 +183,34 @@ describe('verify-deployed', () => {
     expect(result.out).toContain('not yet');
     expect(result.out).toContain('verify-deployed: ok');
     expect(result.code).toBe(0);
+  });
+
+  it('retries when the connection drops after the headers arrive', async () => {
+    let drops = 0;
+    const base = await serve(path => {
+      const served = faithful(path);
+      if (path === '/' && served && drops < 2) {
+        drops += 1;
+        return { ...served, abort: true };
+      }
+      return served;
+    });
+    const result = await run([base, dist(), '--timeout', '10', '--interval', '0.2']);
+    expect(result.out).toContain('request failed');
+    expect(result.out).toContain('verify-deployed: ok');
+    expect(result.code).toBe(0);
+  });
+
+  it('stops at the time limit instead of finishing a slow scan', async () => {
+    const base = await serve(path => {
+      const served = faithful(path);
+      return served ? { ...served, delayMs: 400 } : served;
+    });
+    const started = Date.now();
+    const result = await run([base, dist(), '--timeout', '1', '--interval', '0.1']);
+    expect(Date.now() - started).toBeLessThan(5000);
+    expect(result.out).toContain('the time limit was reached');
+    expect(result.code).toBe(1);
   });
 
   it('fails when the site cannot be reached', async () => {

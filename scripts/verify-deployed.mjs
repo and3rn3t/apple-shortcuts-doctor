@@ -103,24 +103,39 @@ const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
  * Checks every build file against the deployment once.
  * @param {string} baseUrl
  * @param {string} directory
- * @returns {Promise<string[]>} problems found; empty when the deployment matches the build
+ * @param {number} deadline epoch ms after which no further request starts
+ * @returns {Promise<{ problems: string[], complete: boolean }>} problems found (none when the
+ *   deployment matches the build), and whether every file was reached before the deadline
  */
-async function checkOnce(baseUrl, directory) {
+async function checkOnce(baseUrl, directory, deadline) {
   const rules = parseHeaders(readFileSync(join(directory, HEADERS_FILE), 'utf8'));
   const files = listFiles(directory).filter(file => file !== HEADERS_FILE);
-  if (files.length === 0) return ['the build directory has no files to compare'];
+  if (files.length === 0)
+    return { problems: ['the build directory has no files to compare'], complete: true };
   /** @type {string[]} */
   const problems = [];
+  let complete = true;
   for (const file of files) {
     const urlPath = urlPathOf(file);
     const url = new URL(urlPath, baseUrl).href;
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      problems.push(`${urlPath}: not checked, the time limit was reached`);
+      complete = false;
+      break;
+    }
+    /** @type {Response} */
     let response;
+    /** @type {Uint8Array} */
+    let body;
     try {
       response = await fetch(url, {
         cache: 'no-store',
         redirect: 'manual',
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_SECONDS * 1000),
+        signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_SECONDS * 1000, remaining)),
       });
+      // The body is read inside the same guard: a transfer can fail after the headers arrive.
+      body = new Uint8Array(await response.arrayBuffer());
     } catch (error) {
       problems.push(
         `${urlPath}: request failed (${error instanceof Error ? error.message : error})`
@@ -131,7 +146,7 @@ async function checkOnce(baseUrl, directory) {
       problems.push(`${urlPath}: HTTP ${response.status}, expected 200`);
       continue;
     }
-    const served = sha256(new Uint8Array(await response.arrayBuffer()));
+    const served = sha256(body);
     if (served !== sha256(readFileSync(join(directory, file)))) {
       problems.push(`${urlPath}: served bytes differ from the build`);
     }
@@ -145,7 +160,7 @@ async function checkOnce(baseUrl, directory) {
       }
     }
   }
-  return problems;
+  return { problems, complete };
 }
 
 /** @param {number} ms */
@@ -179,18 +194,25 @@ function parseArguments(argv) {
 async function main() {
   const { baseUrl, directory, timeout, interval } = parseArguments(process.argv.slice(2));
   const deadline = Date.now() + timeout * 1000;
+  /** @type {string[]} */
+  let lastComplete = [];
   for (;;) {
-    const problems = await checkOnce(baseUrl, directory);
+    const { problems, complete } = await checkOnce(baseUrl, directory, deadline);
     if (problems.length === 0) {
       console.log(
         `verify-deployed: ok (${baseUrl} serves the build byte-for-byte with its headers)`
       );
       return;
     }
+    if (complete) lastComplete = problems;
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
-      console.error(`verify-deployed: ${baseUrl} does not match the build after ${timeout}s:`);
-      for (const problem of problems) console.error(`  - ${problem}`);
+      // A scan cut short by the deadline lists only some files; the last full scan shows them all.
+      const shown = lastComplete.length > 0 ? lastComplete : problems;
+      console.error(
+        `verify-deployed: ${baseUrl} does not match the build after ${timeout}s (the time limit was reached):`
+      );
+      for (const problem of shown) console.error(`  - ${problem}`);
       process.exit(1);
     }
     console.log(`verify-deployed: not yet (${problems[0]}); retrying`);

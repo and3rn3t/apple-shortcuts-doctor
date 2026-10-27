@@ -148,6 +148,11 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # One production deploy at a time: a second tag must not replace the build while this one is
+    # being verified. Queued, never cancelled, so no deploy is dropped halfway.
+    concurrency:
+      group: deploy-web-production
+      cancel-in-progress: false
     # The environment holds the API token; restrict its deployment branches/tags to v*.*.* there.
     environment: cloudflare-production
     permissions:
