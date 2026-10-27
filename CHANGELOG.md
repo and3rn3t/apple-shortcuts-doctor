@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--flag=value` on boolean flags now print usage and exit `1` instead of being treated as file
   names; `--option=value` syntax works for value options (#32).
 
+### Fixed
+
+- The release workflow now fails if the pushed tag doesn't match the package versions, and the
+  npm job fails if that version is already published instead of skipping quietly (#30).
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed

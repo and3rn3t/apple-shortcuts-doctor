@@ -1,9 +1,11 @@
 # Release workflow — creates a GitHub Release when a version tag is pushed.
 #
-# Usage:
-#   git tag v0.1.0
-#   git push origin v0.1.0
+# Usage (see CONTRIBUTING.md#releasing):
+#   bump "version" in packages/cli/package.json and packages/core/package.json
+#   git tag vX.Y.Z
+#   git push origin vX.Y.Z
 #
+# The first step fails unless the tag matches both package versions.
 # Attaches the installable skill directory as a zip. npm publishing of the CLI
 # is opt-in via the PUBLISH_NPM repository variable (see the publish-npm job).
 
@@ -25,6 +27,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Check tag matches package versions
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          for manifest in packages/cli/package.json packages/core/package.json; do
+            package_version="$(node -p "require('./${manifest}').version")"
+            if [ "$package_version" != "$tag_version" ]; then
+              echo "::error file=${manifest}::Tag ${GITHUB_REF_NAME} does not match version ${package_version} in ${manifest}."
+              exit 1
+            fi
+          done
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
@@ -79,5 +92,18 @@ jobs:
         run: pnpm install --frozen-lockfile
         env:
           HUSKY: 0
+      - name: Fail if this version is already on npm
+        # Only an explicit E404 means the version is free; auth, registry, or network errors fail.
+        run: |
+          version="$(node -p "require('./packages/cli/package.json').version")"
+          if lookup="$(npm view "shortcuts-doctor@${version}" version 2>&1)"; then
+            echo "::error::shortcuts-doctor@${version} is already published. Bump the version and tag again."
+            exit 1
+          fi
+          if ! grep -q 'E404' <<<"$lookup"; then
+            echo "$lookup"
+            echo "::error::Could not check whether shortcuts-doctor@${version} is published."
+            exit 1
+          fi
       - name: Publish (prepack builds the bundle)
         run: pnpm --filter shortcuts-doctor publish --no-git-checks
