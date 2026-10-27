@@ -362,18 +362,43 @@ function parseExport2(bytes, platform = process.platform) {
 
 // packages/cli/src/read-export.ts
 import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
+import { isatty } from "node:tty";
+var STDIN_ARGUMENT = "-";
+var STDIN_FD = 0;
+var RETRY_DELAY_MS = 10;
+function hasCode(error, code) {
+  return error instanceof Error && "code" in error && error.code === code;
+}
+function readChunk(fd, buffer, offset) {
+  for (; ; ) {
+    try {
+      return readSync(fd, buffer, offset, buffer.length - offset, null);
+    } catch (error) {
+      if (!hasCode(error, "EAGAIN")) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, RETRY_DELAY_MS);
+    }
+  }
+}
+function readBounded(fd) {
+  const buffer = Buffer.alloc(MAX_BYTES + 1);
+  let length = 0;
+  let count;
+  while (length < buffer.length && (count = readChunk(fd, buffer, length)) > 0) {
+    length += count;
+  }
+  if (length > MAX_BYTES) throw new Error("Export exceeds the 4 MiB inspection limit.");
+  return buffer.subarray(0, length);
+}
+function readStdin() {
+  if (isatty(STDIN_FD)) throw new Error("Pipe an export into stdin when using '-'.");
+  return readBounded(STDIN_FD);
+}
 function readExport(file) {
+  if (file === STDIN_ARGUMENT) return readStdin();
   const fd = openSync(file, constants.O_RDONLY | constants.O_NONBLOCK);
   try {
     if (!fstatSync(fd).isFile()) throw new Error("Supply a regular export file.");
-    const buffer = Buffer.alloc(MAX_BYTES + 1);
-    let length = 0;
-    let count;
-    while (length < buffer.length && (count = readSync(fd, buffer, length, buffer.length - length, null)) > 0) {
-      length += count;
-    }
-    if (length > MAX_BYTES) throw new Error("Export exceeds the 4 MiB inspection limit.");
-    return buffer.subarray(0, length);
+    return readBounded(fd);
   } finally {
     closeSync(fd);
   }
@@ -383,6 +408,8 @@ function readExport(file) {
 var USAGE = [
   "Usage: shortcuts-doctor inspect [options] <export-file>",
   "       node inspect-shortcut.mjs [options] -- <export-file>",
+  "",
+  "Use '-' as <export-file> to read the export from stdin.",
   "",
   "Options:",
   "  --format text|json|md     Output format (default: text on a terminal, json when piped)",
