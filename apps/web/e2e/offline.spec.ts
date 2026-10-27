@@ -159,7 +159,9 @@ test.describe('working offline', () => {
     const after = await storageUsed(page);
     expect(after.cachedPaths).toEqual(before.cachedPaths);
     for (const path of after.cachedPaths) {
-      expect(path).not.toMatch(/private|some\/route|\.md$/);
+      expect(path).not.toContain('private');
+      expect(path).not.toContain('some/route');
+      expect(path.endsWith('.md')).toBe(false);
     }
     expect(after.localStorage + after.sessionStorage + after.indexedDB).toBe(0);
   });
