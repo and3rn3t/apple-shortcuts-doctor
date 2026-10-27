@@ -29,8 +29,11 @@ interface RawAction {
   WFWorkflowActionParameters?: JsonRecord;
 }
 
+/** Plain objects only: plist dates and data decode to Date and Uint8Array, which are leaf values. */
 function isRecord(value: unknown): value is JsonRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function isValidAction(action: unknown): action is RawAction {
@@ -104,8 +107,13 @@ function collectReferences(
   const stack: unknown[] = [parameters];
   while (stack.length) {
     const value = stack.pop();
-    if (!value || typeof value !== 'object') continue;
-    if (isRecord(value) && typeof value.OutputUUID === 'string') {
+    if (Array.isArray(value)) {
+      // One at a time: spreading a large array would exceed the engine's argument limit.
+      for (const item of value as unknown[]) stack.push(item);
+      continue;
+    }
+    if (!isRecord(value)) continue;
+    if (typeof value.OutputUUID === 'string') {
       const targets = uuidIndexes.get(value.OutputUUID);
       const target = targets?.length === 1 ? targets[0] : undefined;
       if (target === undefined || target >= position) unresolvedReferenceCount++;

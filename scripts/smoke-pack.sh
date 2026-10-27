@@ -29,10 +29,15 @@ mkdir "$work/consumer"
 bin="$work/consumer/node_modules/.bin/shortcuts-doctor"
 [ -x "$bin" ] || fail 'npm did not link the shortcuts-doctor bin'
 
-# 3. Run it: a report (exit 0), the --fail-on threshold (exit 2), and a usage error (exit 1).
+# 3. Run it: --version, a report from each fixture format (exit 0), the --fail-on threshold
+# (exit 2), and a usage error (exit 1).
+expected_version="$(node -p "require('$repo/packages/cli/package.json').version")"
+[ "$("$bin" --version)" = "$expected_version" ] || fail "--version did not print $expected_version"
+for name in mixed-actions.json mixed-actions.plist mixed-actions.binary.plist; do
+  "$bin" inspect --format text "$repo/tests/fixtures/$name" | grep -q '^Shortcuts Doctor: 8 action(s)' ||
+    fail "inspect did not print the expected summary for $name"
+done
 fixture="$repo/tests/fixtures/mixed-actions.json"
-"$bin" inspect --format text "$fixture" | grep -q '^Shortcuts Doctor: 8 action(s)' ||
-  fail 'inspect did not print the expected summary'
 status=0
 "$bin" inspect --quiet --fail-on warning "$fixture" 2>/dev/null || status=$?
 [ "$status" -eq 2 ] || fail "--fail-on warning exited $status, expected 2"

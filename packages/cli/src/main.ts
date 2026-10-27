@@ -1,8 +1,7 @@
-import { inspectWorkflow, renderReport, toReportV1 } from '@shortcuts-doctor/core';
+import { inspectWorkflow, parseExport, renderReport, toReportV1 } from '@shortcuts-doctor/core';
 import { parseArgs } from 'node:util';
 import type { ParseArgsOptionsConfig } from 'node:util';
 import type { Report, ReportFormat, Severity } from '@shortcuts-doctor/core';
-import { parseExport } from './plutil.ts';
 import { readExport } from './read-export.ts';
 
 const USAGE = [
