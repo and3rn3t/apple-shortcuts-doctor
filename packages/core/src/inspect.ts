@@ -108,7 +108,8 @@ function collectReferences(
   while (stack.length) {
     const value = stack.pop();
     if (Array.isArray(value)) {
-      stack.push(...(value as unknown[]));
+      // One at a time: spreading a large array would exceed the engine's argument limit.
+      for (const item of value as unknown[]) stack.push(item);
       continue;
     }
     if (!isRecord(value)) continue;

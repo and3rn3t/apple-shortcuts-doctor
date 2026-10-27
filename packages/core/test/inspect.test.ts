@@ -62,6 +62,12 @@ describe('workflow inspection', () => {
     expect(report.findings.every(f => f.code === 'unknown-action')).toBe(true);
   });
 
+  it('walks very large parameter arrays without exceeding the argument limit', () => {
+    const items = new Array<number>(200_000).fill(0);
+    const report = inspectWorkflow(workflow(action('text', { Items: items })));
+    expect(report.actions[0]?.unresolvedReferenceCount).toBe(0);
+  });
+
   it('deduplicates and sorts references', () => {
     const report = inspectWorkflow(
       workflow(

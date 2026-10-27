@@ -30,8 +30,8 @@ concerns (reading files, converting plists, argv) live at the edges.
 1. **Read** (`cli/read-export.ts`): opens the file read-only and non-blocking, rejects
    non-regular files, and reads at most 4 MiB + 1 byte.
 2. **Decode** (`core/parse.ts`): enforces the size limit. JSON is parsed directly. Recognized XML
-   or binary plists go to the built-in decoder in `core/plist/`, which bounds depth (64) and total
-   values (500,000), checks every binary offset, and rejects cycles
+   or binary plists go to the built-in decoder in `core/plist/`, which bounds depth (64), total
+   values (500,000), and decoded string/data bytes (64 MiB), checks every binary offset, and rejects cycles
    ([ADR-0002](adr/0002-pure-ts-plist-parser.md)). Anything else, including signed AEA
    containers, is rejected. Error messages never include content.
 3. **Validate** (`core/inspect.ts`): checks the root shape, action count (≤ 2000), and each

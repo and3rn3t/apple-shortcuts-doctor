@@ -21,7 +21,8 @@ can contain.
 - Accept only what a workflow needs: dict, array, string, integer, real, boolean, date, data.
   Reject DTD internal subsets, unknown entities, UIDs, sets, and null markers.
 - Bound hostile input beyond the existing 4 MiB check: nesting depth (64), total decoded values
-  (500,000, which also caps expansion of shared binary references), and cycle detection. Every
+  (500,000) and total decoded string/data bytes (64 MiB), which together cap expansion of shared
+  binary references, and cycle detection. Every
   offset and reference in a binary plist is bounds-checked.
 - Dictionaries are prototype-less objects, so keys like `__proto__` stay ordinary data. Dates
   decode to `Date` and data to `Uint8Array`, which the inspector treats as leaf values.

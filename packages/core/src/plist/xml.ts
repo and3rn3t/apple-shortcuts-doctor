@@ -33,7 +33,9 @@ function fail(): never {
 }
 
 function decodeEntity(_match: string, hex?: string, decimal?: string, named?: string): string {
-  if (named !== undefined) return ENTITIES[named] ?? fail();
+  // Own keys only: `&constructor;` must not resolve through Object.prototype.
+  if (named !== undefined)
+    return Object.hasOwn(ENTITIES, named) ? (ENTITIES[named] as string) : fail();
   const codePoint = Number.parseInt((hex ?? decimal) as string, hex === undefined ? 10 : 16);
   if (codePoint >= 0xd800 && codePoint <= 0xdfff) fail();
   return String.fromCodePoint(codePoint);
@@ -56,8 +58,8 @@ function toInteger(text: string): number {
 
 function toReal(text: string): number {
   const trimmed = text.trim();
-  const special = REAL_SPECIALS[trimmed.toLowerCase()];
-  if (special !== undefined) return special;
+  const lowered = trimmed.toLowerCase();
+  if (Object.hasOwn(REAL_SPECIALS, lowered)) return REAL_SPECIALS[lowered] as number;
   const value = Number(trimmed);
   if (trimmed === '' || Number.isNaN(value)) fail();
   return value;

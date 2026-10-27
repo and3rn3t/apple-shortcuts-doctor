@@ -3,7 +3,7 @@ import { DecodeBudget } from './budget.ts';
 import { parseXmlPlist } from './xml.ts';
 
 export type { PlistDictionary, PlistValue } from './budget.ts';
-export { MAX_DEPTH, MAX_NODES } from './budget.ts';
+export { MAX_DECODED_BYTES, MAX_DEPTH, MAX_NODES } from './budget.ts';
 
 const BPLIST_MAGIC = [0x62, 0x70, 0x6c, 0x69, 0x73, 0x74, 0x30, 0x30]; // "bplist00"
 

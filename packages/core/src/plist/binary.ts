@@ -188,18 +188,21 @@ class BinaryPlistReader {
   private readData(offset: number, info: number): Uint8Array {
     const [length, start] = this.readCount(offset, info);
     this.checkRange(start, length);
+    this.budget.reserve(length);
     return this.bytes.slice(start, start + length);
   }
 
   private readAscii(offset: number, info: number): string {
     const [length, start] = this.readCount(offset, info);
     this.checkRange(start, length);
+    this.budget.reserve(length);
     return decodeAscii(this.bytes.subarray(start, start + length));
   }
 
   private readUtf16(offset: number, info: number): string {
     const [length, start] = this.readCount(offset, info);
     this.checkRange(start, length * 2);
+    this.budget.reserve(length * 2);
     return decodeUtf16(this.view, start, length);
   }
 

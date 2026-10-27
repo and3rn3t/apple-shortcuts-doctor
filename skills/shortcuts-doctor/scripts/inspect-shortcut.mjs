@@ -129,7 +129,7 @@ function collectReferences(parameters, position, uuidIndexes) {
   while (stack.length) {
     const value = stack.pop();
     if (Array.isArray(value)) {
-      stack.push(...value);
+      for (const item of value) stack.push(item);
       continue;
     }
     if (!isRecord(value)) continue;
@@ -240,11 +240,18 @@ function inspectWorkflow(workflow) {
 // packages/core/src/plist/budget.ts
 var MAX_DEPTH = 64;
 var MAX_NODES = 5e5;
+var MAX_DECODED_BYTES = 64 * 1024 * 1024;
 var DecodeBudget = class {
   nodes = 0;
+  bytes = 0;
   enter(depth) {
     if (depth > MAX_DEPTH) throw new Error("Plist nesting exceeds the inspection limit.");
     if (++this.nodes > MAX_NODES) throw new Error("Plist has too many values to inspect.");
+  }
+  /** Call before allocating a decoded string or data value of this many bytes. */
+  reserve(byteLength) {
+    this.bytes += byteLength;
+    if (this.bytes > MAX_DECODED_BYTES) throw new Error("Plist has too much data to inspect.");
   }
 };
 function createDictionary() {
@@ -400,16 +407,19 @@ var BinaryPlistReader = class {
   readData(offset, info) {
     const [length, start] = this.readCount(offset, info);
     this.checkRange(start, length);
+    this.budget.reserve(length);
     return this.bytes.slice(start, start + length);
   }
   readAscii(offset, info) {
     const [length, start] = this.readCount(offset, info);
     this.checkRange(start, length);
+    this.budget.reserve(length);
     return decodeAscii(this.bytes.subarray(start, start + length));
   }
   readUtf16(offset, info) {
     const [length, start] = this.readCount(offset, info);
     this.checkRange(start, length * 2);
+    this.budget.reserve(length * 2);
     return decodeUtf16(this.view, start, length);
   }
   readArray(offset, info, depth) {
@@ -459,7 +469,8 @@ function fail2() {
   throw new Error("Malformed XML plist.");
 }
 function decodeEntity(_match, hex, decimal, named) {
-  if (named !== void 0) return ENTITIES[named] ?? fail2();
+  if (named !== void 0)
+    return Object.hasOwn(ENTITIES, named) ? ENTITIES[named] : fail2();
   const codePoint = Number.parseInt(hex ?? decimal, hex === void 0 ? 10 : 16);
   if (codePoint >= 55296 && codePoint <= 57343) fail2();
   return String.fromCodePoint(codePoint);
@@ -479,8 +490,8 @@ function toInteger(text) {
 }
 function toReal(text) {
   const trimmed = text.trim();
-  const special = REAL_SPECIALS[trimmed.toLowerCase()];
-  if (special !== void 0) return special;
+  const lowered = trimmed.toLowerCase();
+  if (Object.hasOwn(REAL_SPECIALS, lowered)) return REAL_SPECIALS[lowered];
   const value = Number(trimmed);
   if (trimmed === "" || Number.isNaN(value)) fail2();
   return value;

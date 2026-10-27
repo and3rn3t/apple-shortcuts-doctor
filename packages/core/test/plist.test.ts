@@ -96,6 +96,9 @@ describe('XML plist decoding', () => {
       '<!DOCTYPE plist [<!ENTITY x "y">]><plist><string>&x;</string></plist>',
     ],
     ['an unknown entity', '<plist><string>&x;</string></plist>'],
+    ['an inherited-property entity', '<plist><string>&constructor;</string></plist>'],
+    ['an inherited-property real', '<plist><real>constructor</real></plist>'],
+    ['a __proto__ real', '<plist><real>__proto__</real></plist>'],
     ['a bare ampersand', '<plist><string>a & b</string></plist>'],
     ['a surrogate character reference', '<plist><string>&#xD800;</string></plist>'],
     ['a missing root', '<array/>'],
@@ -192,6 +195,22 @@ describe('binary plist decoding', () => {
     expect(value).toEqual(Object.assign(Object.create(null), { ['__proto__']: [], b: [] }));
   });
 
+  it('bounds decoded bytes when one string is referenced many times', () => {
+    // 2,000 references to one ~60 KiB string: tiny input, ~120 MiB if each visit copied it.
+    const text = 'x'.repeat(60_000);
+    const refs = 2000;
+    const array = [
+      0xaf,
+      0x11,
+      ...bigEndian(refs, 2),
+      ...new Array<number>(refs * 2).fill(0).map((_, i) => (i % 2 ? 1 : 0)),
+    ];
+    const string = [0x5f, 0x12, ...bigEndian(text.length, 4), ...utf8(text)];
+    const bytes = bplist([array, string], 0, { offsetSize: 4, refSize: 2 });
+    expect(bytes.length).toBeLessThan(100_000);
+    expect(() => parseBinaryPlist(bytes)).toThrow('too much data');
+  });
+
   it('rejects reference cycles', () => {
     expect(() => parseBinaryPlist(bplist([[0xa1, 0]]))).toThrow('Malformed binary plist.');
   });
@@ -279,6 +298,7 @@ describe('hostile plist input through parseExport', () => {
     (_kind, seed) => {
       for (let length = 0; length < seed.length; length++) {
         const outcome = tryParse(seed.subarray(0, length));
+        expect(outcome, `truncated to ${length} bytes`).not.toBe('ok');
         expect(outcome).not.toContain('secret-value');
       }
     }
