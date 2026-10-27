@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CLI no longer spawns `/usr/bin/plutil`, and the skill bundle no longer exports
   `convertWithPlutil`. `parseExport` is now core's, with no platform argument (#24).
 
+### Fixed
+
+- The release workflow now fails if the pushed tag doesn't match the package versions, and the
+  npm job fails if that version is already published instead of skipping quietly (#30).
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed
