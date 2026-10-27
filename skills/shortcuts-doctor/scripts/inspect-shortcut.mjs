@@ -296,7 +296,9 @@ var LIMITATIONS = [
   "No findings does not mean safe; destinations, payloads, and runtime behavior need manual review."
 ];
 function isRecord(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 function isValidAction(action) {
   if (!isRecord(action)) return false;
@@ -346,8 +348,12 @@ function collectReferences(parameters, position, uuidIndexes) {
   const stack = [parameters];
   while (stack.length) {
     const value = stack.pop();
-    if (!value || typeof value !== "object") continue;
-    if (isRecord(value) && typeof value.OutputUUID === "string") {
+    if (Array.isArray(value)) {
+      for (const item of value) stack.push(item);
+      continue;
+    }
+    if (!isRecord(value)) continue;
+    if (typeof value.OutputUUID === "string") {
       const targets = uuidIndexes.get(value.OutputUUID);
       const target = targets?.length === 1 ? targets[0] : void 0;
       if (target === void 0 || target >= position) unresolvedReferenceCount++;
@@ -453,12 +459,437 @@ function inspectWorkflow(workflow) {
   };
 }
 
-// packages/core/src/parse.ts
-var MAX_BYTES = 4 * 1024 * 1024;
+// packages/core/src/plist/budget.ts
+var MAX_DEPTH = 64;
+var MAX_NODES = 5e5;
+var MAX_DECODED_BYTES = 64 * 1024 * 1024;
+var DecodeBudget = class {
+  nodes = 0;
+  bytes = 0;
+  enter(depth) {
+    if (depth > MAX_DEPTH) throw new Error("Plist nesting exceeds the inspection limit.");
+    if (++this.nodes > MAX_NODES) throw new Error("Plist has too many values to inspect.");
+  }
+  /** Call before allocating a decoded string or data value of this many bytes. */
+  reserve(byteLength) {
+    this.bytes += byteLength;
+    if (this.bytes > MAX_DECODED_BYTES) throw new Error("Plist has too much data to inspect.");
+  }
+};
+function createDictionary() {
+  return /* @__PURE__ */ Object.create(null);
+}
+var APPLE_EPOCH_MS = Date.UTC(2001, 0, 1);
+
+// packages/core/src/plist/binary.ts
+var HEADER_LENGTH = 8;
+var TRAILER_LENGTH = 32;
+var STRING_CHUNK = 8192;
+function fail() {
+  throw new Error("Malformed binary plist.");
+}
+function readUnsigned(view, offset, size) {
+  if (size < 1 || size > 8 || offset < 0 || offset + size > view.byteLength) fail();
+  let value = 0n;
+  for (let index = 0; index < size; index++) {
+    value = value << 8n | BigInt(view.getUint8(offset + index));
+  }
+  if (value > BigInt(Number.MAX_SAFE_INTEGER)) fail();
+  return Number(value);
+}
+function readTrailer(view) {
+  if (view.byteLength < HEADER_LENGTH + TRAILER_LENGTH) fail();
+  const start = view.byteLength - TRAILER_LENGTH;
+  const trailer = {
+    offsetSize: view.getUint8(start + 6),
+    refSize: view.getUint8(start + 7),
+    objectCount: readUnsigned(view, start + 8, 8),
+    topObject: readUnsigned(view, start + 16, 8),
+    tableOffset: readUnsigned(view, start + 24, 8)
+  };
+  const tableEnd = trailer.tableOffset + trailer.objectCount * trailer.offsetSize;
+  const valid = trailer.offsetSize >= 1 && trailer.offsetSize <= 8 && trailer.refSize >= 1 && trailer.refSize <= 8 && trailer.objectCount >= 1 && trailer.objectCount <= view.byteLength && trailer.topObject < trailer.objectCount && trailer.tableOffset >= HEADER_LENGTH && tableEnd <= start;
+  if (!valid) fail();
+  return trailer;
+}
+function decodeAscii(bytes) {
+  if (bytes.some((byte) => byte > 127)) fail();
+  return decodeCodeUnits(Array.from(bytes));
+}
+function decodeUtf16(view, start, length) {
+  const units = Array.from({ length }, (_, index) => view.getUint16(start + index * 2));
+  return decodeCodeUnits(units);
+}
+function decodeCodeUnits(units) {
+  let text = "";
+  for (let index = 0; index < units.length; index += STRING_CHUNK) {
+    text += String.fromCharCode(...units.slice(index, index + STRING_CHUNK));
+  }
+  return text;
+}
+var BinaryPlistReader = class {
+  bytes;
+  budget;
+  view;
+  trailer;
+  active = /* @__PURE__ */ new Set();
+  constructor(bytes, budget) {
+    this.bytes = bytes;
+    this.budget = budget;
+    this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    this.trailer = readTrailer(this.view);
+  }
+  read() {
+    return this.readObject(this.trailer.topObject, 1);
+  }
+  objectOffset(ref) {
+    const { tableOffset, offsetSize } = this.trailer;
+    const offset = readUnsigned(this.view, tableOffset + ref * offsetSize, offsetSize);
+    if (offset < HEADER_LENGTH || offset >= tableOffset) fail();
+    return offset;
+  }
+  /** Ensures [start, start + length) lies in the object area, before the offset table. */
+  checkRange(start, length) {
+    if (length < 0 || start + length > this.trailer.tableOffset) fail();
+  }
+  /** Returns [count, first byte after the count] for a marker's low nibble. */
+  readCount(offset, info) {
+    if (info !== 15) return [info, offset + 1];
+    this.checkRange(offset + 1, 1);
+    const marker = this.view.getUint8(offset + 1);
+    if (marker >> 4 !== 1 || (marker & 15) > 3) fail();
+    const size = 1 << (marker & 15);
+    this.checkRange(offset + 2, size);
+    return [readUnsigned(this.view, offset + 2, size), offset + 2 + size];
+  }
+  readRefs(start, count) {
+    const { refSize, objectCount } = this.trailer;
+    this.checkRange(start, count * refSize);
+    return Array.from({ length: count }, (_, index) => {
+      const ref = readUnsigned(this.view, start + index * refSize, refSize);
+      if (ref >= objectCount) fail();
+      return ref;
+    });
+  }
+  readObject(ref, depth) {
+    this.budget.enter(depth);
+    if (this.active.has(ref)) fail();
+    this.active.add(ref);
+    try {
+      return this.readMarker(this.objectOffset(ref), depth);
+    } finally {
+      this.active.delete(ref);
+    }
+  }
+  readMarker(offset, depth) {
+    const marker = this.view.getUint8(offset);
+    const info = marker & 15;
+    switch (marker >> 4) {
+      case 0:
+        if (info === 8 || info === 9) return info === 9;
+        return fail();
+      case 1:
+        return this.readInteger(offset, info);
+      case 2:
+        return this.readReal(offset, info);
+      case 3:
+        if (marker !== 51) fail();
+        return new Date(APPLE_EPOCH_MS + this.readReal(offset, 3) * 1e3);
+      case 4:
+        return this.readData(offset, info);
+      case 5:
+        return this.readAscii(offset, info);
+      case 6:
+        return this.readUtf16(offset, info);
+      case 10:
+        return this.readArray(offset, info, depth);
+      case 13:
+        return this.readDictionary(offset, info, depth);
+      default:
+        return fail();
+    }
+  }
+  readInteger(offset, info) {
+    if (info > 3) fail();
+    const size = 1 << info;
+    this.checkRange(offset + 1, size);
+    if (size === 8) {
+      const value = this.view.getBigInt64(offset + 1);
+      if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER))
+        fail();
+      return Number(value);
+    }
+    return readUnsigned(this.view, offset + 1, size);
+  }
+  readReal(offset, info) {
+    if (info !== 2 && info !== 3) fail();
+    this.checkRange(offset + 1, 1 << info);
+    return info === 2 ? this.view.getFloat32(offset + 1) : this.view.getFloat64(offset + 1);
+  }
+  readData(offset, info) {
+    const [length, start] = this.readCount(offset, info);
+    this.checkRange(start, length);
+    this.budget.reserve(length);
+    return this.bytes.slice(start, start + length);
+  }
+  readAscii(offset, info) {
+    const [length, start] = this.readCount(offset, info);
+    this.checkRange(start, length);
+    this.budget.reserve(length);
+    return decodeAscii(this.bytes.subarray(start, start + length));
+  }
+  readUtf16(offset, info) {
+    const [length, start] = this.readCount(offset, info);
+    this.checkRange(start, length * 2);
+    this.budget.reserve(length * 2);
+    return decodeUtf16(this.view, start, length);
+  }
+  readArray(offset, info, depth) {
+    const [count, start] = this.readCount(offset, info);
+    return this.readRefs(start, count).map((ref) => this.readObject(ref, depth + 1));
+  }
+  readDictionary(offset, info, depth) {
+    const [count, start] = this.readCount(offset, info);
+    const keyRefs = this.readRefs(start, count);
+    const valueRefs = this.readRefs(start + count * this.trailer.refSize, count);
+    const dictionary = createDictionary();
+    keyRefs.forEach((keyRef, index) => {
+      const key = this.readObject(keyRef, depth + 1);
+      if (typeof key !== "string") fail();
+      dictionary[key] = this.readObject(valueRefs[index], depth + 1);
+    });
+    return dictionary;
+  }
+};
+function parseBinaryPlist(bytes, budget = new DecodeBudget()) {
+  return new BinaryPlistReader(bytes, budget).read();
+}
+
+// packages/core/src/plist/xml.ts
+var ENTITIES = {
+  lt: "<",
+  gt: ">",
+  amp: "&",
+  quot: '"',
+  apos: "'"
+};
+var OPEN_TAG = /<([A-Za-z]+)(?:\s+[A-Za-z_:][\w:.-]*\s*=\s*(?:"[^"]*"|'[^']*'))*\s*(\/?)>/y;
+var ENTITY = /&(?:#x([0-9A-Fa-f]{1,6})|#([0-9]{1,7})|([a-z]+));/g;
+var INTEGER = /^[+-]?(?:\d+|0x[0-9A-Fa-f]+)$/;
+var REAL_SPECIALS = {
+  nan: Number.NaN,
+  inf: Infinity,
+  "+inf": Infinity,
+  "-inf": -Infinity,
+  infinity: Infinity,
+  "+infinity": Infinity,
+  "-infinity": -Infinity
+};
+var ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+var BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
+function fail2() {
+  throw new Error("Malformed XML plist.");
+}
+function decodeEntity(_match, hex, decimal, named) {
+  if (named !== void 0)
+    return Object.hasOwn(ENTITIES, named) ? ENTITIES[named] : fail2();
+  const codePoint = Number.parseInt(hex ?? decimal, hex === void 0 ? 10 : 16);
+  if (codePoint >= 55296 && codePoint <= 57343) fail2();
+  return String.fromCodePoint(codePoint);
+}
+function decodeEntities(raw) {
+  const decoded = raw.replace(ENTITY, decodeEntity);
+  if (raw.replace(ENTITY, "").includes("&")) fail2();
+  return decoded;
+}
+function toInteger(text) {
+  const trimmed = text.trim();
+  if (!INTEGER.test(trimmed)) fail2();
+  const negative = trimmed.startsWith("-");
+  const digits = trimmed.replace(/^[+-]/, "");
+  const magnitude = Number(digits);
+  return negative ? -magnitude : magnitude;
+}
+function toReal(text) {
+  const trimmed = text.trim();
+  const lowered = trimmed.toLowerCase();
+  if (Object.hasOwn(REAL_SPECIALS, lowered)) return REAL_SPECIALS[lowered];
+  const value = Number(trimmed);
+  if (trimmed === "" || Number.isNaN(value)) fail2();
+  return value;
+}
+function toDate(text) {
+  const trimmed = text.trim();
+  const date = new Date(trimmed);
+  if (!ISO_DATE.test(trimmed) || Number.isNaN(date.getTime())) fail2();
+  return date;
+}
+function toData(text) {
+  const compact = text.replace(/\s+/g, "");
+  if (!BASE64.test(compact)) fail2();
+  try {
+    return Uint8Array.from(atob(compact), (character) => character.charCodeAt(0));
+  } catch {
+    return fail2();
+  }
+}
+var XmlPlistReader = class {
+  position = 0;
+  text;
+  budget;
+  constructor(text, budget) {
+    this.text = text;
+    this.budget = budget;
+  }
+  read() {
+    this.skipProlog();
+    const root = this.readOpenTag();
+    if (root.name !== "plist" || root.selfClosing) fail2();
+    const value = this.readValue(1);
+    this.skipMisc();
+    this.expectClose("plist");
+    this.skipMisc();
+    if (this.position !== this.text.length) fail2();
+    return value;
+  }
+  startsWith(prefix) {
+    return this.text.startsWith(prefix, this.position);
+  }
+  skipPast(terminator) {
+    const end = this.text.indexOf(terminator, this.position);
+    if (end < 0) fail2();
+    const skipped = this.text.slice(this.position, end);
+    this.position = end + terminator.length;
+    return skipped;
+  }
+  skipWhitespace() {
+    while (/\s/.test(this.text.charAt(this.position))) this.position++;
+  }
+  /** Whitespace and comments, which may appear between any two elements. */
+  skipMisc() {
+    for (; ; ) {
+      this.skipWhitespace();
+      if (!this.startsWith("<!--")) return;
+      this.skipPast("-->");
+    }
+  }
+  skipProlog() {
+    for (; ; ) {
+      this.skipMisc();
+      if (this.startsWith("<?")) this.skipPast("?>");
+      else if (this.startsWith("<!DOCTYPE")) {
+        if (this.skipPast(">").includes("[")) fail2();
+      } else return;
+    }
+  }
+  readOpenTag() {
+    OPEN_TAG.lastIndex = this.position;
+    const match = OPEN_TAG.exec(this.text);
+    if (!match) fail2();
+    this.position = OPEN_TAG.lastIndex;
+    return { name: match[1], selfClosing: match[2] === "/" };
+  }
+  expectClose(name) {
+    const close = new RegExp(`</${name}\\s*>`, "y");
+    close.lastIndex = this.position;
+    if (!close.test(this.text)) fail2();
+    this.position = close.lastIndex;
+  }
+  /** Character data up to the next tag, with entities and CDATA sections decoded. */
+  readText() {
+    let text = "";
+    for (; ; ) {
+      const next = this.text.indexOf("<", this.position);
+      if (next < 0) fail2();
+      text += decodeEntities(this.text.slice(this.position, next));
+      this.position = next;
+      if (!this.startsWith("<![CDATA[")) return text;
+      this.position += "<![CDATA[".length;
+      text += this.skipPast("]]>");
+    }
+  }
+  readElementText(tag) {
+    if (tag.selfClosing) return "";
+    const text = this.readText();
+    this.expectClose(tag.name);
+    return text;
+  }
+  readValue(depth) {
+    this.budget.enter(depth);
+    this.skipMisc();
+    const tag = this.readOpenTag();
+    switch (tag.name) {
+      case "dict":
+        return tag.selfClosing ? createDictionary() : this.readDictionary(depth);
+      case "array":
+        return tag.selfClosing ? [] : this.readArray(depth);
+      case "string":
+        return this.readElementText(tag);
+      case "true":
+      case "false":
+        if (this.readElementText(tag) !== "") fail2();
+        return tag.name === "true";
+      case "integer":
+        return toInteger(this.readElementText(tag));
+      case "real":
+        return toReal(this.readElementText(tag));
+      case "date":
+        return toDate(this.readElementText(tag));
+      case "data":
+        return toData(this.readElementText(tag));
+      default:
+        return fail2();
+    }
+  }
+  atClosingTag() {
+    this.skipMisc();
+    return this.startsWith("</");
+  }
+  readArray(depth) {
+    const items = [];
+    while (!this.atClosingTag()) items.push(this.readValue(depth + 1));
+    this.expectClose("array");
+    return items;
+  }
+  readDictionary(depth) {
+    const dictionary = createDictionary();
+    while (!this.atClosingTag()) {
+      const keyTag = this.readOpenTag();
+      if (keyTag.name !== "key") fail2();
+      const key = this.readElementText(keyTag);
+      dictionary[key] = this.readValue(depth + 1);
+    }
+    this.expectClose("dict");
+    return dictionary;
+  }
+};
+function parseXmlPlist(bytes, budget = new DecodeBudget()) {
+  let text;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return fail2();
+  }
+  return new XmlPlistReader(text, budget).read();
+}
+
+// packages/core/src/plist/index.ts
 var BPLIST_MAGIC = [98, 112, 108, 105, 115, 116, 48, 48];
-var DEFAULT_PLIST_UNAVAILABLE = "Plist inspection is not available here. Supply a JSON workflow export.";
 function isBinaryPlist(bytes) {
   return BPLIST_MAGIC.every((byte, index) => bytes[index] === byte);
+}
+function decodePlist(bytes) {
+  const budget = new DecodeBudget();
+  return isBinaryPlist(bytes) ? parseBinaryPlist(bytes, budget) : parseXmlPlist(bytes, budget);
+}
+
+// packages/core/src/parse.ts
+var MAX_BYTES = 4 * 1024 * 1024;
+var AEA_MAGIC = [65, 69, 65, 49];
+var SIGNED_EXPORT_MESSAGE = 'Signed .shortcut files are not decoded, and signatures are never bypassed. See "Getting an export" in the Shortcuts Doctor README.';
+var UNSUPPORTED_EXPORT_MESSAGE = 'Unsupported export. Supply an unsigned plist or JSON export; see "Getting an export" in the Shortcuts Doctor README.';
+function isSignedContainer(bytes) {
+  return AEA_MAGIC.every((byte, index) => bytes[index] === byte);
 }
 function parseExport(bytes, options = {}) {
   if (bytes.length > MAX_BYTES) throw new Error("Export exceeds the 4 MiB inspection limit.");
@@ -470,19 +901,16 @@ function parseExport(bytes, options = {}) {
       throw new Error("Invalid JSON export. Supply a complete workflow dictionary.");
     }
   }
+  if (isSignedContainer(bytes)) throw new Error(SIGNED_EXPORT_MESSAGE);
   if (!text.startsWith("<?xml") && !text.startsWith("<plist") && !isBinaryPlist(bytes)) {
-    throw new Error(
-      "Unsupported export. Signed containers are not decoded; supply unsigned plist or JSON."
-    );
+    throw new Error(UNSUPPORTED_EXPORT_MESSAGE);
   }
-  if (!options.convertPlist) {
-    throw new Error(options.plistUnavailableMessage ?? DEFAULT_PLIST_UNAVAILABLE);
-  }
+  const convertPlist = options.convertPlist ?? decodePlist;
   try {
-    return options.convertPlist(bytes);
+    return convertPlist(bytes);
   } catch {
     throw new Error(
-      "Cannot decode plist as JSON. It may be malformed or contain unsupported plist values."
+      "Cannot decode plist. It may be malformed, nested too deeply, or use unsupported plist values."
     );
   }
 }
@@ -562,25 +990,6 @@ function renderReport(report, format) {
 
 // packages/cli/src/main.ts
 import { parseArgs } from "node:util";
-
-// packages/cli/src/plutil.ts
-import { execFileSync } from "node:child_process";
-var PLUTIL_PATH = "/usr/bin/plutil";
-var PLUTIL_TIMEOUT_MS = 5e3;
-var PLUTIL_UNAVAILABLE = "Plist inspection requires macOS plutil. Supply a JSON workflow on this platform.";
-function convertWithPlutil(bytes) {
-  const json = execFileSync(PLUTIL_PATH, ["-convert", "json", "-o", "-", "--", "-"], {
-    input: bytes,
-    timeout: PLUTIL_TIMEOUT_MS,
-    maxBuffer: MAX_BYTES * 4,
-    stdio: ["pipe", "pipe", "ignore"]
-  });
-  return JSON.parse(json.toString("utf8"));
-}
-function parseExport2(bytes, platform = process.platform) {
-  const options = platform === "darwin" ? { convertPlist: convertWithPlutil } : { plistUnavailableMessage: PLUTIL_UNAVAILABLE };
-  return parseExport(bytes, options);
-}
 
 // packages/cli/src/read-export.ts
 import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
@@ -726,7 +1135,7 @@ function inspect(argv) {
     return args?.help ? 0 : 1;
   }
   try {
-    const report = inspectWorkflow(parseExport2(readExport(args.files[0])));
+    const report = inspectWorkflow(parseExport(readExport(args.files[0])));
     const legacyJson = args.format === "json" && args.formatVersion === 1;
     if (!args.quiet) {
       process.stdout.write(
@@ -763,9 +1172,8 @@ function isEntrypoint() {
 if (isEntrypoint()) process.exitCode = main(process.argv.slice(2));
 export {
   MAX_BYTES,
-  convertWithPlutil,
   inspectWorkflow,
   main,
-  parseExport2 as parseExport,
+  parseExport,
   readExport
 };

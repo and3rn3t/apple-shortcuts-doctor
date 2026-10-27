@@ -226,11 +226,11 @@ describe('standalone skill bundle', () => {
     expect(result.stdout).not.toMatch(/example\.invalid|echo fixture|Fixture: mixed/);
   });
 
-  it.runIf(process.platform === 'darwin')(
-    'produces the same report from an XML plist via the real plutil',
-    () => {
+  it.each(['mixed-actions.plist', 'mixed-actions.binary.plist'])(
+    'produces the same report from %s as from JSON, on any OS',
+    name => {
       const fromJson = run(['--', fixture('mixed-actions.json')]);
-      const fromPlist = run(['--', fixture('mixed-actions.plist')]);
+      const fromPlist = run(['--', fixture(name)]);
       expect(fromPlist.status).toBe(0);
       expect(fromPlist.stdout).toBe(fromJson.stdout);
     }

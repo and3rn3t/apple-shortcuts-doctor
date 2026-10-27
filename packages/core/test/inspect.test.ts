@@ -72,6 +72,12 @@ describe('workflow inspection', () => {
     expect(report.findings[2]?.message).toContain('Third-party app action');
   });
 
+  it('walks very large parameter arrays without exceeding the argument limit', () => {
+    const items = new Array<number>(200_000).fill(0);
+    const report = inspectWorkflow(workflow(action('text', { Items: items })));
+    expect(report.actions[0]?.unresolvedReferenceCount).toBe(0);
+  });
+
   it('deduplicates and sorts references', () => {
     const report = inspectWorkflow(
       workflow(

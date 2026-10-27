@@ -10,11 +10,11 @@ npx shortcuts-doctor inspect /absolute/path/export.json
 
 Requires Node.js 22 or newer.
 
-Pass `-` instead of a file to read the export from stdin, for example to convert a plist first or
-to inspect output from another tool:
+Pass `-` instead of a file to read the export from stdin, for example to inspect output from
+another tool:
 
 ```bash
-plutil -convert json -o - export.plist | npx shortcuts-doctor inspect -
+curl -sL "$EXPORT_URL" | npx shortcuts-doctor inspect -
 ```
 
 Stdin has the same 4 MiB limit as files. An interactive terminal on stdin is refused rather than
@@ -58,9 +58,11 @@ Exit codes: `0` ok, `1` usage or input error, `2` findings reached the `--fail-o
 
 ## Supported inputs
 
-JSON, XML plist, and binary plist exports, up to 4 MiB and 2000 actions. Plist decoding uses
-macOS `plutil`, so on Linux and Windows only JSON works today. Signed `.shortcut` containers are
-not decoded, and signatures are never bypassed.
+JSON, XML plist, and binary plist exports, up to 4 MiB and 2000 actions, on any OS. Plists are
+decoded in pure TypeScript; nothing is spawned. Signed `.shortcut` containers are not decoded,
+and signatures are never bypassed. See
+[Getting an export](https://github.com/and3rn3t/apple-shortcuts-doctor#getting-an-export) for
+where to get an unsigned file.
 
 ## Use in CI
 
@@ -69,7 +71,7 @@ For a repository that versions Shortcut exports. Pin the version so results stay
 ```yaml
 jobs:
   inspect:
-    runs-on: macos-latest # plist exports need macOS plutil
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6

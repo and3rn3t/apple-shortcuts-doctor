@@ -17,10 +17,17 @@ OpenClaw workspace's `skills/` directory or `~/.openclaw/skills/`. Start a new
 session so OpenClaw discovers the skill. No npm packages or Apple account are
 needed. The inspector requires Node.js 22 or newer.
 
-JSON workflow exports work wherever Node.js is available. Unsigned XML/binary
-plist exports additionally require macOS's built-in `/usr/bin/plutil`. Signed
+JSON and unsigned XML/binary plist exports work wherever Node.js is available.
+The inspector decodes plists itself and never spawns another program. Signed
 `.shortcut` containers, encrypted content, and plist values that cannot be
 converted to JSON are not supported. Do not bypass signatures or restrictions.
+
+Exports made in the Shortcuts app (**Share → Export File** on iPhone and iPad,
+**File → Export…** on a Mac) are always signed and will be refused. The project
+README's "Getting an export" section lists the unsigned sources that work:
+workflow files kept in a repository, and the unsigned `shortcut` asset of an
+iCloud link's record. Mention that sharing an iCloud link publishes the
+Shortcut, and let the user decide; never fetch it yourself.
 
 ## Safety boundaries
 
@@ -73,8 +80,8 @@ converted to JSON are not supported. Do not bypass signatures or restrictions.
    terminal or CI. As an agent, keep passing the approved absolute path.
 
 3. On an unsupported, oversized, or malformed file, stop and explain the
-   limitation. Ask for an unsigned plist/JSON export if their Shortcuts version
-   offers one, or redacted screenshots/action details. Do not execute a shortcut
+   limitation. For a signed file, point the user to "Getting an export" in the
+   project README, or ask for redacted screenshots/action details. Do not execute a shortcut
    to obtain an export or claim the file was reviewed.
 4. Explain the numbered actions and explicit output references in the summary.
    A reference is a **possible dependency**, not proof that sensitive data
