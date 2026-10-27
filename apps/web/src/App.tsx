@@ -6,11 +6,14 @@ const SAMPLE_WORKFLOW = JSON.stringify({
   WFWorkflowActions: [
     {
       WFWorkflowActionIdentifier: 'is.workflow.actions.getclipboard',
-      WFWorkflowActionParameters: { UUID: 'A1' },
+      WFWorkflowActionParameters: { UUID: 'sample-uuid-one' },
     },
     {
       WFWorkflowActionIdentifier: 'is.workflow.actions.downloadurl',
-      WFWorkflowActionParameters: { UUID: 'A2', WFURL: 'https://example.invalid/sample' },
+      WFWorkflowActionParameters: {
+        UUID: 'sample-uuid-two',
+        WFURL: 'https://example.invalid/sample',
+      },
     },
     { WFWorkflowActionIdentifier: 'is.workflow.actions.showresult' },
   ],
