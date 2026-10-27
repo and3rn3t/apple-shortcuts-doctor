@@ -15,10 +15,12 @@ why a Shortcut stopped working and suggesting repairs are planned for
 Given an unsigned Shortcut export (JSON, XML plist, or binary plist), it produces a report with:
 
 - **Action walkthrough**: numbered actions and their explicit output dependencies
-- **Findings**: sensitive inputs (clipboard, location, photos, contacts, files), outbound channels
-  (network requests, messages, email, sharing, URLs), code execution (AppleScript, JavaScript,
-  shell, SSH), destructive actions, nested Shortcuts, unknown actions, and broken or ambiguous
-  references
+- **Findings**: sensitive inputs (clipboard, location, camera, microphone, photos, contacts,
+  calendar, reminders, Health, files), outbound channels (network requests, messages, email,
+  sharing, AirDrop, clipboard, URLs), code execution (AppleScript, JavaScript, shell, SSH),
+  destructive actions, nested Shortcuts, broken or ambiguous references, and actions outside the
+  [rule catalog](packages/core/src/rules.ts), split into Apple actions the catalog doesn't cover
+  yet (`unknown-apple-action`) and third-party app actions (`third-party-action`)
 - **Limitations**: what static inspection cannot tell you
 
 ### Safety model

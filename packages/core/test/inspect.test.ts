@@ -53,13 +53,23 @@ describe('workflow inspection', () => {
 
   it('marks unknown Apple and third-party actions rather than assuming safety', () => {
     const report = inspectWorkflow(
-      workflow(action('futureaction'), {
-        WFWorkflowActionIdentifier: 'com.example.app.intent',
-      })
+      workflow(
+        action('futureaction'),
+        { WFWorkflowActionIdentifier: 'com.apple.mobilenotes.SharingExtension' },
+        { WFWorkflowActionIdentifier: 'com.example.app.intent' }
+      )
     );
     expect(report.actions.every(a => !a.recognized)).toBe(true);
     expect(report.actions.every(a => a.category === 'unknown')).toBe(true);
-    expect(report.findings.every(f => f.code === 'unknown-action')).toBe(true);
+    expect(report.findings.every(f => f.code === 'unknown-action' && f.severity === 'review')).toBe(
+      true
+    );
+    expect(report.findings.map(f => f.ruleId)).toEqual([
+      'unknown-apple-action',
+      'unknown-apple-action',
+      'third-party-action',
+    ]);
+    expect(report.findings[2]?.message).toContain('Third-party app action');
   });
 
   it('walks very large parameter arrays without exceeding the argument limit', () => {
