@@ -180,6 +180,25 @@ describe('binary plist decoding', () => {
     });
   });
 
+  it('decodes 16-byte integers, which CoreFoundation uses for unsigned 64-bit values', () => {
+    // Seen in real exports: a date action's calendar `Unit` (4 = day) stored in 16 bytes.
+    const sixteen = (value: number[]): number[] => [
+      0x14,
+      ...new Array<number>(16 - value.length).fill(0),
+      ...value,
+    ];
+    expect(
+      parseBinaryPlist(
+        bplist([
+          [0xa3, 1, 2, 3],
+          sixteen([4]),
+          sixteen([0x10]),
+          [0x14, ...new Array<number>(16).fill(0xff)],
+        ])
+      )
+    ).toEqual([4, 16, -1]);
+  });
+
   it('decodes wide offsets and references', () => {
     const value = parseBinaryPlist(
       bplist([[0xa1, 0x00, 0x01], ascii('ok')], 0, { offsetSize: 2, refSize: 2 })
@@ -253,7 +272,15 @@ describe('binary plist decoding', () => {
     ['a non-string dictionary key', bplist([[0xd1, 1, 1], [0x09]])],
     ['a UID', bplist([[0x80, 0x01]])],
     ['a null marker', bplist([[0x00]])],
-    ['a 16-byte integer', bplist([[0x14, ...new Array<number>(16).fill(0)]])],
+    [
+      'a 16-byte integer beyond 2^53',
+      bplist([[0x14, ...new Array<number>(8).fill(0), 0x00, 0x20, 0, 0, 0, 0, 0, 0]]),
+    ],
+    [
+      'a 16-byte integer with high bits set',
+      bplist([[0x14, 0, 0, 0, 0, 0, 0, 0, 1, ...new Array<number>(8).fill(0)]]),
+    ],
+    ['a 32-byte integer', bplist([[0x15, ...new Array<number>(32).fill(0)]])],
     ['an integer beyond 2^53', bplist([[0x13, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]])],
     ['a 2-byte real', bplist([[0x21, 0x00, 0x00]])],
     ['a malformed date marker', bplist([[0x32, 0, 0, 0, 0]])],
