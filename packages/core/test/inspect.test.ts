@@ -28,13 +28,13 @@ describe('workflow inspection', () => {
     ['runjavascriptonwebpage', 'code-execution'],
     ['runshellscript', 'code-execution'],
     ['runsshscript', 'code-execution'],
-    ['deletefiles', 'destructive'],
+    ['file.delete', 'destructive'],
     ['runworkflow', 'dependency'],
     ['getcurrentlocation', 'sensitive-input'],
-    ['selectphotos', 'sensitive-input'],
+    ['selectphoto', 'sensitive-input'],
     ['getlatestphotos', 'sensitive-input'],
     ['filter.contacts', 'sensitive-input'],
-    ['getfile', 'sensitive-input'],
+    ['documentpicker.open', 'sensitive-input'],
     ['sendemail', 'outbound'],
     ['sendmessage', 'outbound'],
     ['share', 'outbound'],
@@ -46,7 +46,7 @@ describe('workflow inspection', () => {
 
   it('raises code execution and destructive actions to warning severity', () => {
     const report = inspectWorkflow(
-      workflow(action('runshellscript'), action('deletefiles'), action('openurl'))
+      workflow(action('runshellscript'), action('file.delete'), action('openurl'))
     );
     expect(report.findings.map(f => f.severity)).toEqual(['warning', 'warning', 'review']);
   });
