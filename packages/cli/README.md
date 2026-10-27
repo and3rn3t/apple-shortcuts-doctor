@@ -60,7 +60,9 @@ Exit codes: `0` ok, `1` usage or input error, `2` findings reached the `--fail-o
 
 JSON, XML plist, and binary plist exports, up to 4 MiB and 2000 actions. Plist decoding uses
 macOS `plutil`, so on Linux and Windows only JSON works today. Signed `.shortcut` containers are
-not decoded, and signatures are never bypassed.
+not decoded, and signatures are never bypassed. See
+[Getting an export](https://github.com/and3rn3t/apple-shortcuts-doctor#getting-an-export) for
+where to get an unsigned file.
 
 ## Use in CI
 

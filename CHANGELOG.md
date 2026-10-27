@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Signed `.shortcut` (AEA) files now get their own error message, and both that and the
+  unsupported-export error point to the new "Getting an export" README section (#28).
+
+### Added
+
+- "Getting an export" docs in the README, SKILL.md, and CLI README: app exports are always signed
+  (checked on current iOS and macOS), how to get the unsigned copy from an iCloud link, and why
+  signed files aren't decoded (#28).
+
 ### Added
 
 - Pass `-` as the export file to read it from stdin, with the same 4 MiB limit. An interactive

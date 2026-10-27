@@ -234,9 +234,12 @@ function inspectWorkflow(workflow) {
 // packages/core/src/parse.ts
 var MAX_BYTES = 4 * 1024 * 1024;
 var BPLIST_MAGIC = [98, 112, 108, 105, 115, 116, 48, 48];
+var AEA_MAGIC = [65, 69, 65, 49];
+var SIGNED_EXPORT_MESSAGE = 'Signed .shortcut files are not decoded, and signatures are never bypassed. See "Getting an export" in the Shortcuts Doctor README.';
+var UNSUPPORTED_EXPORT_MESSAGE = 'Unsupported export. Supply an unsigned plist or JSON export; see "Getting an export" in the Shortcuts Doctor README.';
 var DEFAULT_PLIST_UNAVAILABLE = "Plist inspection is not available here. Supply a JSON workflow export.";
-function isBinaryPlist(bytes) {
-  return BPLIST_MAGIC.every((byte, index) => bytes[index] === byte);
+function startsWith(bytes, magic) {
+  return magic.every((byte, index) => bytes[index] === byte);
 }
 function parseExport(bytes, options = {}) {
   if (bytes.length > MAX_BYTES) throw new Error("Export exceeds the 4 MiB inspection limit.");
@@ -248,10 +251,9 @@ function parseExport(bytes, options = {}) {
       throw new Error("Invalid JSON export. Supply a complete workflow dictionary.");
     }
   }
-  if (!text.startsWith("<?xml") && !text.startsWith("<plist") && !isBinaryPlist(bytes)) {
-    throw new Error(
-      "Unsupported export. Signed containers are not decoded; supply unsigned plist or JSON."
-    );
+  if (startsWith(bytes, AEA_MAGIC)) throw new Error(SIGNED_EXPORT_MESSAGE);
+  if (!text.startsWith("<?xml") && !text.startsWith("<plist") && !startsWith(bytes, BPLIST_MAGIC)) {
+    throw new Error(UNSUPPORTED_EXPORT_MESSAGE);
   }
   if (!options.convertPlist) {
     throw new Error(options.plistUnavailableMessage ?? DEFAULT_PLIST_UNAVAILABLE);
