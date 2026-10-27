@@ -39,7 +39,10 @@ Shortcut is safe.
 | `--format-version 1\|2`     | JSON report version (default `2`; schema in the repository)        |
 | `--fail-on review\|warning` | Exit `2` if any finding is at or above this severity               |
 | `--quiet`                   | Do not print the report (errors and `--fail-on` notes still print) |
-| `--help`                    | Show usage                                                         |
+| `-v`, `--version`           | Print the version                                                  |
+| `-h`, `--help`              | Show usage                                                         |
+
+An unrecognized option exits `1` with `Unknown option: <name>`.
 
 Exit codes: `0` ok, `1` usage or input error, `2` findings reached the `--fail-on` threshold.
 

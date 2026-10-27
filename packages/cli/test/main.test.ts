@@ -168,6 +168,62 @@ describe('main', () => {
     });
   });
 
+  it('accepts --option=value syntax', () => {
+    const file = writeExport('export.json', '{"WFWorkflowActions":[]}');
+    expect(main(['--format=md', file])).toBe(0);
+    expect(output(stdout)).toContain('# Shortcuts Doctor report');
+  });
+
+  it.each([
+    [['--bogus', 'x'], '--bogus'],
+    [['inspect', '--bogus=private-value', 'x'], '--bogus'],
+    [['-x', 'file'], '-x'],
+    [['--version'.padEnd(60, 'z')], `--version${'z'.repeat(31)}`],
+    [['--b\u001bad'], '--b?ad'],
+    [['--constructor', 'x'], '--constructor'],
+    [['--toString', 'x'], '--toString'],
+    [['--__proto__', 'x'], '--__proto__'],
+  ])('names unknown option %j without echoing values', (args, name) => {
+    expect(main(args)).toBe(1);
+    expect(output(stderr)).toBe(
+      `Shortcuts Doctor: Unknown option: ${name}. Run --help for usage.\n`
+    );
+    expect(output(stdout)).toBe('');
+    expect(output(stderr)).not.toContain('private-value');
+  });
+
+  it('rejects a value on a boolean flag with usage', () => {
+    expect(main(['--quiet=yes', 'x'])).toBe(1);
+    expect(output(stdout)).toContain('Usage:');
+    expect(output(stdout) + output(stderr)).not.toContain('yes');
+  });
+
+  it.each([['--version'], ['-v'], ['inspect', '--version']])(
+    'prints the version for %j',
+    (...args) => {
+      expect(main(args)).toBe(0);
+      expect(output(stdout)).toMatch(/^\d+\.\d+\.\d+\n$/);
+    }
+  );
+
+  it('prints usage and succeeds for -h', () => {
+    expect(main(['-h'])).toBe(0);
+    expect(output(stdout)).toContain('-v, --version');
+  });
+
+  it.each(['__proto__', 'toString', 'constructor', 'hasOwnProperty'])(
+    'treats the inherited property name %j as a file, not a subcommand',
+    name => {
+      expect(main([name])).toBe(1);
+      expect(output(stderr)).toBe('Shortcuts Doctor: Cannot read the supplied export file.\n');
+    }
+  );
+
+  it('treats option-like names after -- as file names', () => {
+    expect(main(['--', '--bogus'])).toBe(1);
+    expect(output(stderr)).toBe('Shortcuts Doctor: Cannot read the supplied export file.\n');
+  });
+
   it('rejects unknown formats', () => {
     expect(main(['--format', 'xml', 'x'])).toBe(1);
     expect(output(stdout)).toContain('Usage:');
