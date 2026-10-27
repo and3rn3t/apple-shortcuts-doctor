@@ -7,28 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+## [0.3.1] - 2026-10-27
 
-- `scripts/profile-exports.mjs`: a stats-only structural profile of a folder of exports (keys,
-  serialization and attachment types, identifiers, sizes, versions), never values. Findings from
-  138 published Shortcuts are in [docs/research/export-format.md](docs/research/export-format.md).
+Fixes found by checking 0.3.0 against 138 real, published Shortcuts.
 
 ### Fixed
 
+- **Binary plists with 16-byte integers no longer fail to decode.** CoreFoundation stores unsigned
+  64-bit numbers, such as a date action's calendar `Unit`, as 16-byte integers even when the
+  value is small. 0.3.0 rejected 12 of the 138 Shortcuts (8.7%); all 138 now decode and match
+  Python's `plistlib` (dates to the millisecond). Values outside JavaScript's safe-integer range
+  are still rejected (#75).
 - **Three catalog identifiers were wrong.** Real exports use `documentpicker.open` (Get File),
   `file.delete` (Delete Files), and `selectphoto` (Select Photos), not `getfile`, `deletefiles`,
   and `selectphotos`. These actions were reported only as unknown, so file deletion never got its
-  `destructive` warning. Found by profiling 138 published Shortcuts, where these IDs appear 210,
-  68, and 5 times.
+  `destructive` warning (#76).
+- Binary plist strings decode with the native `TextDecoder`, about 4× faster, so hostile files
+  that stay inside the 64 MiB decoded-byte budget are rejected quickly (#74).
 
-- **Binary plists with 16-byte integers no longer fail to decode.** CoreFoundation stores unsigned
-  64-bit numbers, such as a date action's calendar `Unit`, as 16-byte integers even when the
-  value is small. 12 of 138 published real-world Shortcuts were rejected by 0.3.0; all 138 now
-  decode and match Python's `plistlib` (dates to the millisecond). Values outside JavaScript's
-  safe-integer range are still rejected.
-- Binary plist strings decode with the native `TextDecoder`, about 4× faster. Hostile files that
-  stay inside the 64 MiB decoded-byte budget are rejected quickly, and a byte-budget test that
-  timed out on Windows CI now passes.
+### Added
+
+- `scripts/profile-exports.mjs`, a stats-only structural profiler for folders of exports. It prints
+  Apple-defined structure and counts and redacts everything else. Findings from 138 published
+  Shortcuts are in [docs/research/export-format.md](docs/research/export-format.md) (#77).
 
 ## [0.3.0] - 2026-10-27
 
