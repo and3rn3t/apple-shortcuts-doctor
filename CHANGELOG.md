@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Binary plist strings decode with the native `TextDecoder`, about 4× faster. Hostile files that
+  stay inside the 64 MiB decoded-byte budget are rejected quickly, and a byte-budget test that
+  timed out on Windows CI now passes.
+
 ## [0.3.0] - 2026-10-27
 
 Works on real exports: plist files on any OS, stdin input, clearer errors, far less rule noise,

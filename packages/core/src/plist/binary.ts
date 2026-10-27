@@ -3,7 +3,6 @@ import type { PlistDictionary, PlistValue } from './budget.ts';
 
 const HEADER_LENGTH = 8; // "bplist00"
 const TRAILER_LENGTH = 32;
-const STRING_CHUNK = 8192;
 
 function fail(): never {
   throw new Error('Malformed binary plist.');
@@ -53,22 +52,18 @@ function readTrailer(view: DataView): Trailer {
   return trailer;
 }
 
+// Native decoders keep hostile input that is large but within the byte budget fast to reject.
+const UTF8 = new TextDecoder('utf-8');
+const UTF16_BE = new TextDecoder('utf-16be');
+
+/** ASCII is a subset of UTF-8, so once every byte is checked the native decoder is exact. */
 function decodeAscii(bytes: Uint8Array): string {
   if (bytes.some(byte => byte > 0x7f)) fail();
-  return decodeCodeUnits(Array.from(bytes));
+  return UTF8.decode(bytes);
 }
 
-function decodeUtf16(view: DataView, start: number, length: number): string {
-  const units = Array.from({ length }, (_, index) => view.getUint16(start + index * 2));
-  return decodeCodeUnits(units);
-}
-
-function decodeCodeUnits(units: number[]): string {
-  let text = '';
-  for (let index = 0; index < units.length; index += STRING_CHUNK) {
-    text += String.fromCharCode(...units.slice(index, index + STRING_CHUNK));
-  }
-  return text;
+function decodeUtf16(bytes: Uint8Array): string {
+  return UTF16_BE.decode(bytes);
 }
 
 /** Walks the object graph from the top object. Every offset and reference is bounds-checked. */
@@ -203,7 +198,7 @@ class BinaryPlistReader {
     const [length, start] = this.readCount(offset, info);
     this.checkRange(start, length * 2);
     this.budget.reserve(length * 2);
-    return decodeUtf16(this.view, start, length);
+    return decodeUtf16(this.bytes.subarray(start, start + length * 2));
   }
 
   private readArray(offset: number, info: number, depth: number): PlistValue[] {
