@@ -25,6 +25,7 @@ const FORBIDDEN_APIS = [
   'sessionStorage',
   'indexedDB',
 ];
+const SERVICE_WORKER = 'sw.js';
 const FORBIDDEN_CALLS = [/(?<![\w$])Function\s*\(/];
 const HTML_FORBIDDEN_TAGS = ['iframe', 'object', 'embed', 'form', 'base', 'style'];
 const INLINE_SCRIPT = /<script\b(?![^>]*\bsrc\s*=)[^>]*>/i;
@@ -108,10 +109,16 @@ function checkCss(css) {
     .map(value => `external CSS reference "${value.slice(0, 60)}"`);
 }
 
-/** @param {string} script @returns {string[]} */
-function checkScript(script) {
+/**
+ * @param {string} script
+ * @param {string} name path of the script inside dist
+ * @returns {string[]}
+ */
+function checkScript(script, name) {
   const problems = [];
   for (const api of FORBIDDEN_APIS) {
+    // The service worker fetches the files it precaches; no other script may fetch anything.
+    if (api === 'fetch' && name === SERVICE_WORKER) continue;
     if (new RegExp(`(?<![\\w$])${api}(?![\\w$])`).test(script)) problems.push(`uses ${api}`);
   }
   for (const pattern of FORBIDDEN_CALLS) {
@@ -150,8 +157,13 @@ function parseHeaders(text) {
   return rules;
 }
 
-/** @param {string} policy @returns {string[]} */
-function checkCsp(policy) {
+/**
+ * @param {string} policy
+ * @param {boolean} [forWorker] the service worker's own policy: it may connect to its own origin
+ * (to precache) and nowhere else, and loads no scripts
+ * @returns {string[]}
+ */
+function checkCsp(policy, forWorker = false) {
   const problems = [];
   const directives = new Map();
   for (const part of policy
@@ -170,12 +182,31 @@ function checkCsp(policy) {
       if (!ALLOWED_SOURCES.has(source)) problems.push(`CSP: ${name} allows "${source}"`);
     }
   }
-  for (const name of REQUIRED_NONE) {
+  const requiredNone = forWorker ? ['default-src'] : REQUIRED_NONE;
+  for (const name of requiredNone) {
     if (directives.get(name)?.join(' ') !== "'none'") problems.push(`CSP: ${name} must be 'none'`);
   }
-  if (directives.get('script-src')?.join(' ') !== "'self'")
+  if (forWorker) {
+    if (directives.get('connect-src')?.join(' ') !== "'self'")
+      problems.push("CSP: connect-src must be 'self'");
+  } else if (directives.get('script-src')?.join(' ') !== "'self'") {
     problems.push("CSP: script-src must be 'self'");
+  }
   return problems;
+}
+
+/**
+ * The service worker's rule must replace the page policy (every matching rule applies, so a second
+ * policy added without detaching would leave both enforced and break precaching) with a strict one.
+ * @param {{ pattern: string, headers: Map<string, string>, detached: string[] }} rule
+ * @returns {string[]}
+ */
+function checkWorkerRule(rule) {
+  const policy = rule.headers.get('content-security-policy');
+  if (!rule.detached.includes('content-security-policy'))
+    return [`_headers ${rule.pattern} sets a CSP without detaching the page policy first`];
+  if (!policy) return [`_headers ${rule.pattern} detaches the CSP but sets no replacement`];
+  return checkCsp(policy, true).map(problem => `${rule.pattern} ${problem}`);
 }
 
 /** @param {string} text @returns {string[]} */
@@ -187,13 +218,19 @@ function checkHeaders(text) {
   const rules = parseHeaders(text);
   const protectedHeaders = ['content-security-policy', ...Object.keys(REQUIRED_HEADERS)];
   for (const rule of rules) {
+    const workerRule = rule.pattern === `/${SERVICE_WORKER}`;
     for (const name of rule.detached.filter(detached => protectedHeaders.includes(detached))) {
+      // The one exception: the service worker swaps the page policy for its own (see below).
+      if (workerRule && name === 'content-security-policy') continue;
       problems.push(`_headers ${rule.pattern} removes ${name} (Cloudflare "! header" detaches it)`);
     }
+    if (workerRule) problems.push(...checkWorkerRule(rule));
     for (const name of rule.repeated.filter(repeated => protectedHeaders.includes(repeated))) {
       problems.push(`_headers ${rule.pattern} sets ${name} twice`);
     }
   }
+  if (!rules.some(rule => rule.pattern === `/${SERVICE_WORKER}`))
+    problems.push(`_headers has no /${SERVICE_WORKER} rule, so the worker could not precache`);
   const everything = rules.find(rule => rule.pattern === '/*');
   if (!everything) return [...problems, '_headers has no /* rule'];
   const csp = everything.headers.get('content-security-policy');
@@ -203,6 +240,84 @@ function checkHeaders(text) {
     if (!value || !expected.test(value)) problems.push(`_headers /* needs a valid ${name}`);
   }
   return problems;
+}
+
+/** Files the platform serves or that are the worker itself: never precached. */
+const NOT_PRECACHED = new Set(['_headers', SERVICE_WORKER]);
+const BUILD_MANIFEST = /\/\* @build \*\/\s*(\{[\s\S]*?\})\s*\/\* @end \*\//;
+
+/**
+ * The worker precaches exactly the files of the build, so the app works offline and the worker
+ * can't be coaxed into serving or fetching anything else.
+ * @param {string} dist
+ * @param {string[]} names every file in dist, as forward-slash relative paths
+ * @returns {string[]}
+ */
+function checkServiceWorker(dist, names) {
+  if (!names.includes(SERVICE_WORKER)) return [`${SERVICE_WORKER} is missing from the build`];
+  const match = BUILD_MANIFEST.exec(readFileSync(join(dist, SERVICE_WORKER), 'utf8'));
+  if (!match) return [`${SERVICE_WORKER} has no build manifest`];
+  /** @type {{ cache?: unknown, files?: unknown }} */
+  let build;
+  try {
+    build = JSON.parse(match[1] ?? '');
+  } catch {
+    return [`${SERVICE_WORKER} build manifest is not valid JSON`];
+  }
+  const problems = [];
+  if (typeof build.cache !== 'string' || !/^shortcuts-doctor-[0-9a-f]{12}$/.test(build.cache))
+    problems.push('build manifest has no content-derived cache name');
+  const files = Array.isArray(build.files) ? build.files : [];
+  if (!files.length || files.some(file => typeof file !== 'string'))
+    return [...problems, 'build manifest has no file list'];
+  const listed = /** @type {string[]} */ (files);
+  for (const file of listed) {
+    if (!/^\/[A-Za-z0-9._\-/]*$/.test(file) || file.includes('..') || file.includes('//'))
+      problems.push(`precaches a suspicious path "${file.slice(0, 60)}"`);
+  }
+  const expected = names
+    .filter(name => !NOT_PRECACHED.has(name))
+    .map(name => (name === 'index.html' ? '/' : `/${name}`));
+  for (const file of expected.filter(file => !listed.includes(file)))
+    problems.push(`does not precache ${file}, so the app would not work offline`);
+  for (const file of listed.filter(file => !expected.includes(file)))
+    problems.push(`precaches ${file}, which is not in the build`);
+  if (new Set(listed).size !== listed.length) problems.push('precache list has duplicates');
+  return problems;
+}
+
+/**
+ * @param {string} dist
+ * @param {string[]} names
+ * @returns {string[]}
+ */
+function checkManifest(dist, names) {
+  if (!names.includes('manifest.webmanifest')) return ['manifest.webmanifest is missing'];
+  /** @type {{ name?: unknown, start_url?: unknown, display?: unknown, icons?: unknown }} */
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(join(dist, 'manifest.webmanifest'), 'utf8'));
+  } catch {
+    return ['manifest.webmanifest is not valid JSON'];
+  }
+  const problems = [];
+  for (const field of ['name', 'start_url', 'display']) {
+    if (typeof manifest[/** @type {'name'} */ (field)] !== 'string')
+      problems.push(`has no ${field}`);
+  }
+  const icons = Array.isArray(manifest.icons) ? manifest.icons : [];
+  for (const icon of icons) {
+    const source = typeof icon?.src === 'string' ? icon.src : '';
+    if (!source.startsWith('/') || !names.includes(source.slice(1)))
+      problems.push(`icon "${source.slice(0, 60)}" is not in the build`);
+  }
+  const sizes = icons.map(
+    icon => `${icon?.sizes}${icon?.purpose === 'maskable' ? ' maskable' : ''}`
+  );
+  for (const needed of ['192x192', '512x512', '512x512 maskable']) {
+    if (!sizes.includes(needed)) problems.push(`has no ${needed} icon`);
+  }
+  return problems.map(problem => `manifest.webmanifest ${problem}`);
 }
 
 /** @param {string} dist @returns {{ problems: string[], files: number }} */
@@ -221,12 +336,17 @@ function checkDist(dist) {
       : file.endsWith('.css')
         ? checkCss(text)
         : /\.m?js$/.test(file)
-          ? checkScript(text)
+          ? checkScript(text, name)
           : name === '_headers'
             ? checkHeaders(readFileSync(file, 'utf8'))
             : [];
     problems.push(...found.map(problem => `${name}: ${problem}`));
   }
+  const names = files.map(file => relative(dist, file).split(sep).join('/'));
+  problems.push(
+    ...checkServiceWorker(dist, names).map(problem => `${SERVICE_WORKER}: ${problem}`),
+    ...checkManifest(dist, names)
+  );
   return { problems, files: files.length };
 }
 

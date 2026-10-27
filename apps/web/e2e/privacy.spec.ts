@@ -96,6 +96,7 @@ test.describe('an inspected export stays in the page', () => {
       page,
     }) => {
       const watcher = await openApp(page);
+      const before = await storageUsed(page);
       await page.setInputFiles('input[type=file]', upload('private-name.shortcut', fixture(name)));
       await expect(page.getByRole('heading', { name: 'Report' })).toBeVisible();
       await expect(page.getByTestId('summary')).toContainText('Inspected 8 actions');
@@ -104,12 +105,10 @@ test.describe('an inspected export stays in the page', () => {
       expect(watcher.requestsSinceMark()).toEqual([]);
       expect(await watcher.violations()).toEqual([]);
       expect(watcher.consoleErrors).toEqual([]);
-      expect(await storageUsed(page)).toEqual({
-        localStorage: 0,
-        sessionStorage: 0,
-        indexedDB: 0,
-        cacheStorage: 0,
-      });
+      const after = await storageUsed(page);
+      expect(after.localStorage + after.sessionStorage + after.indexedDB).toBe(0);
+      // The offline cache holds this build's files and nothing the inspection produced.
+      expect(after.cachedPaths).toEqual(before.cachedPaths);
     });
   }
 

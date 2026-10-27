@@ -86,4 +86,5 @@ committed file differs. See [ADR-0001](adr/0001-typescript-core-bundled-skill.md
 | File path argument      | Passed as an argv element, never interpolated. Never echoed in errors                                                 |
 | Plist structure         | Depth, value-count, and offset bounds; prototype-less dictionaries; no DTDs, entities beyond the XML five, or UIDs    |
 | Web app page            | CSP `default-src 'none'` with `connect-src 'none'`: the page can open no connection. Checked at build time            |
+| Web app offline worker  | Precaches the build's files and serves only those; declines everything else, caches nothing at runtime; own CSP       |
 | Report consumer (agent) | Report includes action identifiers, which may contain injection attempts. SKILL.md tells agents to treat them as data |
