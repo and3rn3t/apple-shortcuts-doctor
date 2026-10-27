@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
+import { cliVersionDefine } from './scripts/cli-version.mjs';
 
 export default defineConfig({
+  define: cliVersionDefine(),
   test: {
     include: ['packages/*/test/**/*.test.ts', 'tests/**/*.test.ts'],
     coverage: {

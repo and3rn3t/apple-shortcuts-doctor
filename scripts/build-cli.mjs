@@ -2,6 +2,7 @@
 // Usage: node scripts/build-cli.mjs
 import { chmodSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { cliVersionDefine } from './cli-version.mjs';
 import { build } from 'esbuild';
 
 const outfile = fileURLToPath(
@@ -15,6 +16,7 @@ await build({
   target: 'node22',
   format: 'esm',
   legalComments: 'none',
+  define: cliVersionDefine(),
   banner: { js: '#!/usr/bin/env node' },
   outfile,
 });

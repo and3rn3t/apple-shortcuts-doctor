@@ -14,11 +14,16 @@ const USAGE = [
   '  --format-version 1|2      JSON report version (default: 2)',
   '  --fail-on review|warning  Exit 2 if any finding is at or above this severity',
   '  --quiet                   Do not print the report (errors and --fail-on notes still print)',
+  '  -v, --version             Print the version',
+  '  -h, --help                Show this help',
   '',
   'Exit codes: 0 ok, 1 usage or input error, 2 findings reached the --fail-on threshold.',
   '',
 ].join('\n');
+// Replaced at bundle time by scripts/build-*.mjs and in tests by vitest.config.ts.
+declare const __SHORTCUTS_DOCTOR_VERSION__: string;
 const EXIT_FINDINGS = 2;
+const MAX_OPTION_NAME_LENGTH = 40;
 const FORMATS: readonly string[] = ['text', 'json', 'md'];
 
 const INSPECT_OPTIONS = {
@@ -26,7 +31,8 @@ const INSPECT_OPTIONS = {
   'format-version': { type: 'string' },
   'fail-on': { type: 'string' },
   quiet: { type: 'boolean' },
-  help: { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+  version: { type: 'boolean', short: 'v' },
 } as const satisfies ParseArgsOptionsConfig;
 const INSPECT_CONFIG = { options: INSPECT_OPTIONS, allowPositionals: true, strict: true } as const;
 type ParsedInspect = ReturnType<typeof parseArgs<typeof INSPECT_CONFIG>>;
@@ -38,6 +44,11 @@ interface InspectArgs {
   quiet: boolean;
   files: string[];
   help: boolean;
+  version: boolean;
+}
+
+interface UnknownOption {
+  unknownOption: string;
 }
 
 type Command = (argv: string[]) => number;
@@ -61,8 +72,19 @@ function toFailOn(value: string | undefined): Severity | undefined | null {
   return value === 'review' || value === 'warning' ? value : null;
 }
 
+/** Option name only (never an `=value`), with anything but name characters masked. */
+function findUnknownOption(argv: string[]): UnknownOption | undefined {
+  const { tokens } = parseArgs({ ...INSPECT_CONFIG, args: argv, strict: false, tokens: true });
+  const unknown = tokens.find(token => token.kind === 'option' && !(token.name in INSPECT_OPTIONS));
+  if (unknown?.kind !== 'option') return undefined;
+  const name = unknown.rawName.slice(0, MAX_OPTION_NAME_LENGTH).replace(/[^\w-]/g, '?');
+  return { unknownOption: name };
+}
+
 /** Returns undefined for any invalid flag or value; parseArgs errors can quote argv, so they are dropped. */
-function parseInspectArgs(argv: string[]): InspectArgs | undefined {
+function parseInspectArgs(argv: string[]): InspectArgs | UnknownOption | undefined {
+  const unknownOption = findUnknownOption(argv);
+  if (unknownOption) return unknownOption;
   let parsed: ParsedInspect;
   try {
     parsed = parseArgs({ ...INSPECT_CONFIG, args: argv });
@@ -81,6 +103,7 @@ function parseInspectArgs(argv: string[]): InspectArgs | undefined {
     quiet: values.quiet ?? false,
     files: positionals,
     help: values.help ?? false,
+    version: values.version ?? false,
   };
 }
 
@@ -91,6 +114,16 @@ function countAtOrAbove(report: Report, threshold: Severity): number {
 
 function inspect(argv: string[]): number {
   const args = parseInspectArgs(argv);
+  if (args && 'unknownOption' in args) {
+    process.stderr.write(
+      `Shortcuts Doctor: Unknown option: ${args.unknownOption}. Run --help for usage.\n`
+    );
+    return 1;
+  }
+  if (args?.version) {
+    process.stdout.write(`${__SHORTCUTS_DOCTOR_VERSION__}\n`);
+    return 0;
+  }
   if (!args || args.help || args.files.length !== 1) {
     process.stdout.write(USAGE);
     return args?.help ? 0 : 1;
