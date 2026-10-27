@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `homepage` and `bugs` fields in the npm package metadata (#33).
+
 - CI packs the npm tarball, installs it into an empty project on Node 22 and 24, and runs the bin.
   It checks the file list, executable bit, shebang, and exit codes 0, 1, and 2. Run it locally
   with `pnpm smoke:pack` (#31).
