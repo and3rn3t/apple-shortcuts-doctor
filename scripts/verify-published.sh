@@ -18,10 +18,15 @@ fail() {
 }
 
 # 1. The registry can take minutes to serve a new version; poll its version document directly.
+# Every request and sleep is bounded by the time left, so a stalled connection can't outlast it.
 deadline=$((SECONDS + timeout))
-until curl -fs -o /dev/null -H 'Cache-Control: no-cache' "https://registry.npmjs.org/${package}/${version}"; do
-  [ "$SECONDS" -lt "$deadline" ] || fail "${package}@${version} was not on the registry after ${timeout}s"
-  sleep 15
+url="https://registry.npmjs.org/${package}/${version}"
+while :; do
+  remaining=$((deadline - SECONDS))
+  [ "$remaining" -gt 0 ] || fail "${package}@${version} was not on the registry after ${timeout}s"
+  curl -fs -o /dev/null --max-time "$((remaining < 30 ? remaining : 30))" -H 'Cache-Control: no-cache' "$url" && break
+  remaining=$((deadline - SECONDS))
+  [ "$remaining" -gt 0 ] && sleep "$((remaining < 15 ? remaining : 15))"
 done
 
 # 2. Provenance must be attached; trusted publishing is what makes the release verifiable.
