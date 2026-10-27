@@ -10,6 +10,16 @@ npx shortcuts-doctor inspect /absolute/path/export.json
 
 Requires Node.js 22 or newer.
 
+Pass `-` instead of a file to read the export from stdin, for example to convert a plist first or
+to inspect output from another tool:
+
+```bash
+plutil -convert json -o - export.plist | npx shortcuts-doctor inspect -
+```
+
+Stdin has the same 4 MiB limit as files. An interactive terminal on stdin is refused rather than
+waited on.
+
 ## Example
 
 ```text

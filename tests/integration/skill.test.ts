@@ -162,6 +162,41 @@ describe('standalone skill bundle', () => {
     expect(run(['--help']).status).toBe(0);
   });
 
+  it.each([[['-']], [['--', '-']], [['inspect', '-']]])(
+    'reads a piped export from stdin for %j',
+    args => {
+      const input = readFileSync(fixture('mixed-actions.json'));
+      const result = spawnSync(process.execPath, [script, ...args], {
+        input,
+        encoding: 'utf8',
+        timeout: 10000,
+      });
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout).actionCount).toBe(8);
+      expect(result.stderr).toBe('');
+    }
+  );
+
+  it('applies the 4 MiB limit to stdin', () => {
+    const result = spawnSync(process.execPath, [script, '--', '-'], {
+      input: Buffer.alloc(bundle.MAX_BYTES + 1, 0x20),
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe('Shortcuts Doctor: Export exceeds the 4 MiB inspection limit.\n');
+  });
+
+  it('fails closed on empty stdin', () => {
+    const result = spawnSync(process.execPath, [script, '-'], {
+      input: '',
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+  });
+
   it('prints the package version baked in at build time', () => {
     const manifest = JSON.parse(
       readFileSync(new URL('../../packages/cli/package.json', import.meta.url), 'utf8')
