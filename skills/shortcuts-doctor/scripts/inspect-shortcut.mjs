@@ -338,6 +338,9 @@ function renderReport(report, format) {
 `;
 }
 
+// packages/cli/src/main.ts
+import { parseArgs } from "node:util";
+
 // packages/cli/src/plutil.ts
 import { execFileSync } from "node:child_process";
 var PLUTIL_PATH = "/usr/bin/plutil";
@@ -392,55 +395,55 @@ var USAGE = [
 ].join("\n");
 var EXIT_FINDINGS = 2;
 var FORMATS = ["text", "json", "md"];
+var INSPECT_OPTIONS = {
+  format: { type: "string" },
+  "format-version": { type: "string" },
+  "fail-on": { type: "string" },
+  quiet: { type: "boolean" },
+  help: { type: "boolean" }
+};
+var INSPECT_CONFIG = { options: INSPECT_OPTIONS, allowPositionals: true, strict: true };
 function hasErrorCode(error) {
   return error instanceof Error && "code" in error && Boolean(error.code);
 }
 function defaultFormat() {
   return process.stdout.isTTY ? "text" : "json";
 }
-function stripSubcommand(argv) {
-  return argv[0] === "inspect" ? argv.slice(1) : argv;
+function toFormatVersion(value) {
+  if (value === void 0 || value === "2") return 2;
+  return value === "1" ? 1 : void 0;
 }
-function parseArgs(rawArgv) {
-  const argv = stripSubcommand(rawArgv);
-  const parsed = {
-    format: defaultFormat(),
-    formatVersion: 2,
-    failOn: void 0,
-    quiet: false,
-    files: [],
-    help: false
-  };
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === "--") {
-      parsed.files.push(...argv.slice(i + 1));
-      break;
-    }
-    if (arg === "--help") parsed.help = true;
-    else if (arg === "--format") {
-      const value = argv[++i];
-      if (value === void 0 || !FORMATS.includes(value)) return void 0;
-      parsed.format = value;
-    } else if (arg === "--format-version") {
-      const value = argv[++i];
-      if (value !== "1" && value !== "2") return void 0;
-      parsed.formatVersion = value === "1" ? 1 : 2;
-    } else if (arg === "--fail-on") {
-      const value = argv[++i];
-      if (value !== "review" && value !== "warning") return void 0;
-      parsed.failOn = value;
-    } else if (arg === "--quiet") parsed.quiet = true;
-    else parsed.files.push(arg);
+function toFailOn(value) {
+  if (value === void 0) return void 0;
+  return value === "review" || value === "warning" ? value : null;
+}
+function parseInspectArgs(argv) {
+  let parsed;
+  try {
+    parsed = parseArgs({ ...INSPECT_CONFIG, args: argv });
+  } catch {
+    return void 0;
   }
-  return parsed;
+  const { values, positionals } = parsed;
+  const format = values.format ?? defaultFormat();
+  const formatVersion = toFormatVersion(values["format-version"]);
+  const failOn = toFailOn(values["fail-on"]);
+  if (!FORMATS.includes(format) || formatVersion === void 0 || failOn === null) return void 0;
+  return {
+    format,
+    formatVersion,
+    failOn,
+    quiet: values.quiet ?? false,
+    files: positionals,
+    help: values.help ?? false
+  };
 }
 function countAtOrAbove(report, threshold) {
   const { review, warning } = report.summary.findingsBySeverity;
   return threshold === "warning" ? warning : review + warning;
 }
-function main(argv) {
-  const args = parseArgs(argv);
+function inspect(argv) {
+  const args = parseInspectArgs(argv);
   if (!args || args.help || args.files.length !== 1) {
     process.stdout.write(USAGE);
     return args?.help ? 0 : 1;
@@ -467,6 +470,12 @@ function main(argv) {
 `);
     return 1;
   }
+}
+var COMMANDS = { inspect };
+function main(argv) {
+  const [name, ...rest] = argv;
+  const command = name !== void 0 && Object.hasOwn(COMMANDS, name) ? COMMANDS[name] : void 0;
+  return command ? command(rest) : inspect(argv);
 }
 
 // packages/cli/src/index.ts

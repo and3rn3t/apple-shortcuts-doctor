@@ -27,6 +27,9 @@ concerns (reading files, converting plists, argv) live at the edges.
 
 ## Data flow
 
+0. **Arguments** (`cli/main.ts`): `node:util` `parseArgs` in strict mode, dispatched through a
+   subcommand table (`inspect` is the default when no subcommand is named). Invalid options print
+   usage; parser error text is never echoed because it can quote argv.
 1. **Read** (`cli/read-export.ts`): opens the file read-only and non-blocking, rejects
    non-regular files, and reads at most 4 MiB + 1 byte.
 2. **Decode** (`core/parse.ts`): enforces the size limit. JSON is parsed directly. Recognized XML
