@@ -107,6 +107,10 @@ All new code should include tests. Follow the patterns documented in:
 Fixtures must be synthetic: use `.invalid` domains and obviously fake values, and never commit a
 real personal Shortcut. Any test that touches parameter data needs a "does not leak" assertion.
 
+To check parsing or rules against real exports, profile them instead of committing them:
+`node scripts/profile-exports.mjs <folder>` prints structure and counts only. See
+[docs/research/export-format.md](docs/research/export-format.md).
+
 ```bash
 pnpm test
 pnpm test:coverage
