@@ -7,6 +7,10 @@ export default tseslint.config(
   {
     ignores: [
       'coverage/',
+      // Wrangler's local dev server writes bundled helper code here.
+      '**/.wrangler/',
+      'apps/web/test-results/',
+      'apps/web/playwright-report/',
       '.claude/',
       'dist/',
       'packages/cli/dist/',

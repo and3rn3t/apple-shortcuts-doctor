@@ -1,6 +1,9 @@
 :root {
   color-scheme: light dark;
   font-family: system-ui, sans-serif;
+  --bg: #ffffff;
+  --fg: #111827;
+  --link: #1d4ed8;
   --border: #6b7280;
   --accent: #1d4ed8;
   --accent-text: #ffffff;
@@ -11,6 +14,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --bg: #0f1419;
+    --fg: #e6e8eb;
+    --link: #93c5fd;
     --border: #9ca3af;
     --accent: #93c5fd;
     --accent-text: #0b1220;
@@ -20,8 +26,16 @@
   }
 }
 
+/* Explicit colors, not the browser's canvas default, so contrast is the same everywhere. */
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+a,
+a:visited {
+  color: var(--link);
 }
 
 main {

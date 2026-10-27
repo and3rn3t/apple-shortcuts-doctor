@@ -40,3 +40,8 @@ logs/
 # Temporary
 tmp/
 temp/
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+.wrangler/

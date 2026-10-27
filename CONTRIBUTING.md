@@ -73,6 +73,10 @@ test(cart): add edge case tests for empty cart
 - The packed npm tarball (`pnpm smoke:pack`) on Node 22 and 24: only `dist/`, `README.md`,
   `package.json`, and `LICENSE` ship, the bin is executable with a shebang, and it inspects a
   fixture in each format (JSON, XML plist, binary plist) with the expected exit codes and `--version`.
+- The web app in real Chromium (`pnpm test:e2e`, Playwright against `wrangler dev` with the shipped
+  headers): no request after load, nothing stored, the CSP actually blocking, keyboard access, and
+  an axe accessibility scan of each state in both color themes. Install the browser once with
+  `pnpm --filter @shortcuts-doctor/web exec playwright install chromium`.
 - The workflows themselves: [actionlint](https://github.com/rhysd/actionlint) for syntax and
   expressions, [zizmor](https://docs.zizmor.sh) for security (credential persistence, permissions,
   cache poisoning, injection, risky action pins). Run them locally with `actionlint` and

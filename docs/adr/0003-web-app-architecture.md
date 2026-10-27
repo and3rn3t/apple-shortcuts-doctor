@@ -44,3 +44,5 @@ dev`), so a path that matches two rules gets two Content-Security-Policy headers
 - No server-side features (sharing links, history). Anything needing storage would require a new
   ADR and would weaken the privacy claim.
 - Dependencies are pinned exactly and the web build is part of `pnpm validate`.
+- The privacy and accessibility claims are tested in a real browser (`apps/web/e2e`, the `web-e2e`
+  CI job), against `wrangler dev` so the shipped `_headers` apply, rather than only in jsdom.
