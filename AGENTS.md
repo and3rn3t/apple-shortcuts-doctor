@@ -24,11 +24,11 @@ how they are organized; `gh issue list --milestone "v0.3: Works on real exports"
 
 ```text
 packages/core/   @shortcuts-doctor/core: pure TypeScript, browser-safe (no node:* imports)
-  src/parse.ts     parseExport(bytes, { convertPlist }): plist decoding is injected
+  src/parse.ts     parseExport(bytes): JSON, or plists via src/plist/ (XML + bplist00, pure TS)
   src/inspect.ts   inspectWorkflow(workflow): Report
   src/rules.ts     action identifier → category/message catalog
   src/types.ts     Report, Finding, InspectedAction, …
-packages/cli/    Node-only: readExport (bounded read), plutil converter, main(argv)
+packages/cli/    Node-only: readExport (bounded read), main(argv)
 skills/shortcuts-doctor/
   SKILL.md                    skill instructions (user-facing contract)
   scripts/inspect-shortcut.mjs  GENERATED bundle of packages/cli; never edit by hand
@@ -68,14 +68,16 @@ These are product guarantees documented in SKILL.md. Every change must preserve 
 enforce most of them:
 
 - **Never execute** Shortcut content: no `shortcuts run`, AppleScript, shell, JS, URLs, or nested
-  workflows. The only subprocess allowed is `/usr/bin/plutil` with fixed arguments and no shell.
+  workflows. No subprocesses at all: plists are decoded in core (`plutil` appears only in a
+  macOS cross-check test).
 - **Never emit parameter values** (text, URLs, headers, bodies, tokens), UUIDs, file paths, or
   file contents in reports **or error messages**. Add a "does not leak" assertion to any test
   that touches new parameter data.
 - **No network, no file writes** from core or the CLI.
 - **No "safe" verdict**. Don't add a safety score or a `safe` field.
 - **Fail closed**: malformed input produces an error, never a partial report.
-- **Bounded input**: 4 MiB and 2000 actions. Check limits before decoding.
+- **Bounded input**: 4 MiB and 2000 actions. Check limits before decoding. Plist decoding also
+  bounds nesting depth and total values (`packages/core/src/plist/budget.ts`).
 - Treat export content as **untrusted data**. Action identifiers and names can carry prompt
   injection.
 - `packages/core` must stay browser-safe (enforced by ESLint `no-restricted-imports` and

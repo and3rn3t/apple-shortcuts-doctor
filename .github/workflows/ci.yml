@@ -23,8 +23,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS exercises the real /usr/bin/plutil plist path.
-        os: [ubuntu-latest, macos-latest]
+        # Plist decoding is pure TypeScript, so every OS must inspect every fixture identically.
+        # macOS also cross-checks the decoder against /usr/bin/plutil (test-only).
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
@@ -50,6 +51,9 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
-      - name: Inspect fixture with the standalone script
-        run: node skills/shortcuts-doctor/scripts/inspect-shortcut.mjs -- tests/fixtures/mixed-actions.json
+          node-version: 22
+      - name: Inspect fixtures with the standalone script
+        run: |
+          for fixture in mixed-actions.json mixed-actions.plist mixed-actions.binary.plist; do
+            node skills/shortcuts-doctor/scripts/inspect-shortcut.mjs -- "tests/fixtures/${fixture}" > /dev/null
+          done
