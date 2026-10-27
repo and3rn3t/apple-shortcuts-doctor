@@ -19,7 +19,8 @@
     "type-check": "tsc -p packages/core && tsc -p packages/cli && tsc -p .",
     "validate": "pnpm lint && pnpm format:check && pnpm type-check && pnpm build:cli && pnpm test:coverage && pnpm build:skill:check",
     "prepare": "husky",
-    "build:cli": "node scripts/build-cli.mjs"
+    "build:cli": "node scripts/build-cli.mjs",
+    "smoke:pack": "scripts/smoke-pack.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

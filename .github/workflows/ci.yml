@@ -57,3 +57,28 @@ jobs:
           for fixture in mixed-actions.json mixed-actions.plist mixed-actions.binary.plist; do
             node skills/shortcuts-doctor/scripts/inspect-shortcut.mjs -- "tests/fixtures/${fixture}" > /dev/null
           done
+
+  npm-tarball:
+    # Validates what users install from npm, not the workspace: pack, install, run the bin.
+    name: npm tarball (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          standalone: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: 0
+      - name: Pack, install, and run the CLI
+        run: scripts/smoke-pack.sh
