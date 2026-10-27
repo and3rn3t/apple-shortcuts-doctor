@@ -1,5 +1,6 @@
 # Calls the shared reusable CodeQL workflow (and3rn3t/.github).
-# Set `languages` to your project's languages: javascript, typescript, python, swift, etc.
+# CodeQL's `javascript` extractor also analyzes TypeScript, so listing both ran the same analysis
+# twice (identical rules and results). One entry keeps the existing /language:javascript history.
 name: CodeQL Security Analysis
 
 on:
@@ -19,4 +20,4 @@ jobs:
   analyze:
     uses: and3rn3t/.github/.github/workflows/reusable-codeql.yml@0415d76d5dfdf1dec81d4756d411850057f38618 # v1
     with:
-      languages: '["javascript", "typescript"]'
+      languages: '["javascript"]'

@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the job that creates the GitHub Release, and release builds never restore a dependency cache, so
   a cache written by a pull request can't reach a published package.
 
+### Changed
+
+- CodeQL runs one analysis instead of two. Its `javascript` extractor already covers TypeScript,
+  so the separate `typescript` job repeated the same 201 rules with the same results.
+
 ### Added
 
 - The release workflow verifies what it published: it waits for npm to serve the new version,
