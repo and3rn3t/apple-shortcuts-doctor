@@ -110,10 +110,21 @@ Maintainers only. A pushed `vX.Y.Z` tag runs [`release.yml`](.github/workflows/r
    git push origin vX.Y.Z
    ```
 
-The workflow fails before doing anything if the tag doesn't match both package versions, and the
-npm job fails if that version is already on the registry. If either check fails, fix the
-version, delete the tag (`git push --delete origin vX.Y.Z`), and tag again. npm publishing runs
-only when the `PUBLISH_NPM` repository variable is `true`.
+The workflow fails before doing anything if the tag doesn't match both package versions. The npm
+job fails if that version is already on the registry, or if the registry can't be checked.
+
+- **Tag and version don't match:** delete the tag locally and on GitHub, fix the versions, merge,
+  and tag the corrected commit:
+
+  ```bash
+  git tag --delete vX.Y.Z
+  git push --delete origin vX.Y.Z
+  ```
+
+- **Version already on npm:** a published version can't be reused. Bump to a new, unpublished
+  version and push a new matching tag.
+
+npm publishing runs only when the `PUBLISH_NPM` repository variable is `true`.
 
 ## AI-Assisted Development
 

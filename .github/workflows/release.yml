@@ -93,10 +93,16 @@ jobs:
         env:
           HUSKY: 0
       - name: Fail if this version is already on npm
+        # Only an explicit E404 means the version is free; auth, registry, or network errors fail.
         run: |
           version="$(node -p "require('./packages/cli/package.json').version")"
-          if npm view "shortcuts-doctor@${version}" version >/dev/null 2>&1; then
-            echo "::error::shortcuts-doctor@${version} is already published. Bump the version and re-tag."
+          if lookup="$(npm view "shortcuts-doctor@${version}" version 2>&1)"; then
+            echo "::error::shortcuts-doctor@${version} is already published. Bump the version and tag again."
+            exit 1
+          fi
+          if ! grep -q 'E404' <<<"$lookup"; then
+            echo "$lookup"
+            echo "::error::Could not check whether shortcuts-doctor@${version} is published."
             exit 1
           fi
       - name: Publish (prepack builds the bundle)
