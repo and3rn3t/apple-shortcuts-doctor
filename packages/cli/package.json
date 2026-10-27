@@ -20,6 +20,10 @@
     "README.md"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/and3rn3t/apple-shortcuts-doctor/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/and3rn3t/apple-shortcuts-doctor/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/and3rn3t/apple-shortcuts-doctor.git",
