@@ -111,7 +111,8 @@ Shortcut, and let the user decide; never fetch it yourself.
   `third-party-action` finding depends on what that app does with its input.
 - **Potential data flows:** observed sources and sinks; label unproven
   connections and dynamic destinations.
-- **Findings:** action number, evidence, possible impact, confidence, and a
+- **Findings:** action numbers (a finding lists every action the same rule
+  matched), evidence, possible impact, confidence, and a
   manual next step. Do not reproduce secrets or personal content.
 - **Repair suggestions:** smallest reversible changes, without modifying files.
 - **Limitations:** static inspection cannot establish runtime behavior,

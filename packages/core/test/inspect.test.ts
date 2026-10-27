@@ -64,12 +64,85 @@ describe('workflow inspection', () => {
     expect(report.findings.every(f => f.code === 'unknown-action' && f.severity === 'review')).toBe(
       true
     );
-    expect(report.findings.map(f => f.ruleId)).toEqual([
-      'unknown-apple-action',
-      'unknown-apple-action',
-      'third-party-action',
+    // The two Apple actions share a message, so they group into one finding.
+    expect(report.findings.map(f => [f.ruleId, f.actions])).toEqual([
+      ['unknown-apple-action', [1, 2]],
+      ['third-party-action', [3]],
     ]);
-    expect(report.findings[2]?.message).toContain('Third-party app action');
+    expect(report.findings[1]?.message).toContain('Third-party app action');
+  });
+
+  describe('finding grouping', () => {
+    it('merges repeated findings from one rule into a single finding listing every action', () => {
+      const report = inspectWorkflow(
+        workflow(
+          action('filter.health.quantity'),
+          action('text'),
+          action('filter.health.quantity'),
+          action('downloadurl'),
+          action('filter.health.quantity')
+        )
+      );
+      expect(report.findings.map(f => [f.code, f.actions])).toEqual([
+        ['sensitive-input', [1, 3, 5]],
+        ['outbound', [4]],
+      ]);
+    });
+
+    it('keeps findings from different rules, severities, or messages apart', () => {
+      const report = inspectWorkflow(
+        workflow(
+          action('getclipboard'),
+          action('getcurrentlocation'),
+          action('runshellscript'),
+          action('getclipboard')
+        )
+      );
+      expect(report.findings.map(f => [f.ruleId, f.actions])).toEqual([
+        ['getclipboard', [1, 4]],
+        ['getcurrentlocation', [2]],
+        ['runshellscript', [3]],
+      ]);
+      expect(report.findings.map(f => f.severity)).toEqual(['review', 'review', 'warning']);
+    });
+
+    it('does not merge duplicate-output findings, which relate their actions to each other', () => {
+      const report = inspectWorkflow(
+        workflow(
+          action('text', { UUID: 'a' }),
+          action('text', { UUID: 'a' }),
+          action('text', { UUID: 'b' }),
+          action('text', { UUID: 'b' })
+        )
+      );
+      expect(report.findings.map(f => [f.code, f.actions])).toEqual([
+        ['duplicate-output', [1, 2]],
+        ['duplicate-output', [3, 4]],
+      ]);
+    });
+
+    it('orders findings by first action, with duplicate outputs where their first action falls', () => {
+      const report = inspectWorkflow(
+        workflow(
+          action('text', { UUID: 'a' }),
+          action('getclipboard'),
+          action('text', { UUID: 'a' }),
+          action('getclipboard')
+        )
+      );
+      expect(report.findings.map(f => [f.code, f.actions])).toEqual([
+        ['duplicate-output', [1, 3]],
+        ['sensitive-input', [2, 4]],
+      ]);
+    });
+
+    it('counts grouped findings in the summary and still fails --fail-on thresholds the same', () => {
+      const report = inspectWorkflow(
+        workflow(action('getclipboard'), action('getclipboard'), action('runshellscript'))
+      );
+      expect(report.summary.findingsBySeverity).toEqual({ review: 1, warning: 1 });
+      expect(report.findings).toHaveLength(2);
+    });
   });
 
   it('walks very large parameter arrays without exceeding the argument limit', () => {
