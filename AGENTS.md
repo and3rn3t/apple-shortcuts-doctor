@@ -32,6 +32,7 @@ skills/shortcuts-doctor/
   SKILL.md                    skill instructions (user-facing contract)
   scripts/inspect-shortcut.mjs  GENERATED bundle of packages/cli; never edit by hand
 scripts/build-skill.mjs       esbuild bundler (+ --check drift mode)
+scripts/build-cli.mjs         esbuild bundle of the npm bin (packages/cli/dist, gitignored)
 tests/integration/            tests against the bundled script, as an installed skill runs it
 tests/fixtures/               synthetic exports; never commit real personal Shortcuts
 ```
