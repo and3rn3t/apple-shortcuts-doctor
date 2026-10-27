@@ -49,12 +49,20 @@ concerns (reading files, converting plists, argv) live at the edges.
 ## Web data flow
 
 The web app (`apps/web`, [ADR-0003](adr/0003-web-app-architecture.md)) skips the CLI's read step.
-The browser hands it a `File`; everything after that is the same core code:
+The browser hands it a `File` from the picker or a drop; everything after that is the same core code
+(`apps/web/src/inspect-file.ts`):
 
-`File` → `arrayBuffer()` → `parseExport(new Uint8Array(buffer))` → `inspectWorkflow(workflow)` → `Report`
+1. **Size**: `file.size` is checked against core's `MAX_BYTES` _before_ anything is read, so an
+   oversized file is refused without loading it.
+2. `file.arrayBuffer()` → `parseExport(new Uint8Array(buffer))` → `inspectWorkflow(workflow)` →
+   `Report`.
+3. **Errors** are core's fixed, content-free messages, plus fixed messages for an unreadable file.
+   A signed container (`isSignedExport`) also gets a panel linking to "Getting an export". File
+   names, parameter values, and UUIDs are never rendered.
 
-There is no network request after the page loads. The scaffold currently runs this on a built-in
-JSON sample; file input arrives with the inspector UI (#35).
+There is no network request after the page loads and nothing is stored: the build guard
+(`scripts/check-web-build.mjs`) rejects network and storage APIs in the bundle, and the CSP forbids
+connections. A built-in sample can be inspected without a file.
 
 ## Why the skill script is generated
 

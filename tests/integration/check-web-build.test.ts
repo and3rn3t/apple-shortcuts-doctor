@@ -69,7 +69,9 @@ describe('scripts/check-web-build.mjs', () => {
   it('accepts a build with only same-origin resources and the shipped _headers', () => {
     const result = check(build({}));
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe('check-web-build: ok (4 files, no network APIs, strict CSP)\n');
+    expect(result.stdout).toBe(
+      'check-web-build: ok (4 files, no network or storage APIs, strict CSP)\n'
+    );
   });
 
   it.each([
@@ -91,6 +93,9 @@ describe('scripts/check-web-build.mjs', () => {
     ['sendBeacon', 'navigator.sendBeacon("/log", data);', 'uses sendBeacon'],
     ['importScripts', 'importScripts("/x.js");', 'uses importScripts'],
     ['RTCPeerConnection', 'new RTCPeerConnection();', 'uses RTCPeerConnection'],
+    ['localStorage', 'localStorage.setItem("k", "v");', 'uses localStorage'],
+    ['window.sessionStorage', 'window.sessionStorage.getItem("k");', 'uses sessionStorage'],
+    ['indexedDB', 'indexedDB.open("db");', 'uses indexedDB'],
     ['eval', 'eval("1");', 'uses eval'],
     ['window.eval', 'window.eval("1");', 'uses eval'],
     ['globalThis.eval', 'globalThis.eval("1");', 'uses eval'],

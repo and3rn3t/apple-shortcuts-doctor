@@ -17,7 +17,8 @@ export interface ParseOptions {
   convertPlist?: PlistConverter;
 }
 
-function isSignedContainer(bytes: Uint8Array): boolean {
+/** True for a signed `.shortcut` container (Apple Encrypted Archive), which is never decoded. */
+export function isSignedExport(bytes: Uint8Array): boolean {
   return AEA_MAGIC.every((byte, index) => bytes[index] === byte);
 }
 
@@ -35,7 +36,7 @@ export function parseExport(bytes: Uint8Array, options: ParseOptions = {}): unkn
       throw new Error('Invalid JSON export. Supply a complete workflow dictionary.');
     }
   }
-  if (isSignedContainer(bytes)) throw new Error(SIGNED_EXPORT_MESSAGE);
+  if (isSignedExport(bytes)) throw new Error(SIGNED_EXPORT_MESSAGE);
   if (!text.startsWith('<?xml') && !text.startsWith('<plist') && !isBinaryPlist(bytes)) {
     throw new Error(UNSUPPORTED_EXPORT_MESSAGE);
   }

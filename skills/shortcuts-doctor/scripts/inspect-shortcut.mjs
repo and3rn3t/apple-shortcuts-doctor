@@ -900,7 +900,7 @@ var MAX_BYTES = 4 * 1024 * 1024;
 var AEA_MAGIC = [65, 69, 65, 49];
 var SIGNED_EXPORT_MESSAGE = 'Signed .shortcut files are not decoded, and signatures are never bypassed. See "Getting an export" in the Shortcuts Doctor README.';
 var UNSUPPORTED_EXPORT_MESSAGE = 'Unsupported export. Supply an unsigned plist or JSON export; see "Getting an export" in the Shortcuts Doctor README.';
-function isSignedContainer(bytes) {
+function isSignedExport(bytes) {
   return AEA_MAGIC.every((byte, index) => bytes[index] === byte);
 }
 function parseExport(bytes, options = {}) {
@@ -913,7 +913,7 @@ function parseExport(bytes, options = {}) {
       throw new Error("Invalid JSON export. Supply a complete workflow dictionary.");
     }
   }
-  if (isSignedContainer(bytes)) throw new Error(SIGNED_EXPORT_MESSAGE);
+  if (isSignedExport(bytes)) throw new Error(SIGNED_EXPORT_MESSAGE);
   if (!text.startsWith("<?xml") && !text.startsWith("<plist") && !isBinaryPlist(bytes)) {
     throw new Error(UNSUPPORTED_EXPORT_MESSAGE);
   }
