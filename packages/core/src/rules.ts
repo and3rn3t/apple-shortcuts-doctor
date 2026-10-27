@@ -290,14 +290,14 @@ const BASIC_ENTRIES: readonly CatalogEntry[] = [
 export const CATALOG: readonly CatalogEntry[] = [...RULE_ENTRIES, ...BASIC_ENTRIES];
 
 export const RULES: ReadonlyMap<string, Rule> = new Map(
-  RULE_ENTRIES.map(({ id, category, message }) => [
+  CATALOG.filter(entry => entry.category !== 'basic').map(({ id, category, message }) => [
     `${ACTION_PREFIX}${id}`,
     { category: category as RuleCategory, message: message as string },
   ])
 );
 
 export const BASIC_ACTIONS: ReadonlySet<string> = new Set(
-  BASIC_ENTRIES.map(({ id }) => `${ACTION_PREFIX}${id}`)
+  CATALOG.filter(entry => entry.category === 'basic').map(({ id }) => `${ACTION_PREFIX}${id}`)
 );
 
 /** Apple identifiers the catalog lacks are a coverage gap; anything else is a third-party intent. */

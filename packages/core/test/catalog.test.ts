@@ -10,7 +10,7 @@ describe('rule catalog', () => {
     const ids = CATALOG.map(entry => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const entry of CATALOG) {
-      expect(entry.id).not.toMatch(new RegExp(`^${ACTION_PREFIX.replace(/\./g, '\\.')}`));
+      expect(entry.id.startsWith(ACTION_PREFIX)).toBe(false);
       expect(entry.title.length).toBeGreaterThan(0);
       expect(Boolean(entry.message)).toBe(entry.category !== 'basic');
     }

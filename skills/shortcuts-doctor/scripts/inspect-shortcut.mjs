@@ -271,13 +271,13 @@ var BASIC_ENTRIES = [
 ];
 var CATALOG = [...RULE_ENTRIES, ...BASIC_ENTRIES];
 var RULES = new Map(
-  RULE_ENTRIES.map(({ id, category, message }) => [
+  CATALOG.filter((entry) => entry.category !== "basic").map(({ id, category, message }) => [
     `${ACTION_PREFIX}${id}`,
     { category, message }
   ])
 );
 var BASIC_ACTIONS = new Set(
-  BASIC_ENTRIES.map(({ id }) => `${ACTION_PREFIX}${id}`)
+  CATALOG.filter((entry) => entry.category === "basic").map(({ id }) => `${ACTION_PREFIX}${id}`)
 );
 function isAppleIdentifier(identifier) {
   return identifier.startsWith(ACTION_PREFIX) || identifier.startsWith(APPLE_INTENT_PREFIX);
