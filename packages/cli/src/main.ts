@@ -77,7 +77,9 @@ function toFailOn(value: string | undefined): Severity | undefined | null {
 /** Option name only (never an `=value`), with anything but name characters masked. */
 function findUnknownOption(argv: string[]): UnknownOption | undefined {
   const { tokens } = parseArgs({ ...INSPECT_CONFIG, args: argv, strict: false, tokens: true });
-  const unknown = tokens.find(token => token.kind === 'option' && !(token.name in INSPECT_OPTIONS));
+  const unknown = tokens.find(
+    token => token.kind === 'option' && !Object.hasOwn(INSPECT_OPTIONS, token.name)
+  );
   if (unknown?.kind !== 'option') return undefined;
   const name = unknown.rawName.slice(0, MAX_OPTION_NAME_LENGTH).replace(/[^\w-]/g, '?');
   return { unknownOption: name };
@@ -162,6 +164,7 @@ const COMMANDS: Readonly<Record<string, Command>> = { inspect };
 /** Runs the CLI for the given argv (without node and script) and returns the process exit code. */
 export function main(argv: string[]): number {
   const [name, ...rest] = argv;
-  const command = name === undefined ? undefined : COMMANDS[name];
+  // Own keys only, so file names such as `__proto__` or `toString` are never treated as commands.
+  const command = name !== undefined && Object.hasOwn(COMMANDS, name) ? COMMANDS[name] : undefined;
   return command ? command(rest) : inspect(argv);
 }

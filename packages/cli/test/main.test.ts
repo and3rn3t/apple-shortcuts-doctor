@@ -180,6 +180,9 @@ describe('main', () => {
     [['-x', 'file'], '-x'],
     [['--version'.padEnd(60, 'z')], `--version${'z'.repeat(31)}`],
     [['--b\u001bad'], '--b?ad'],
+    [['--constructor', 'x'], '--constructor'],
+    [['--toString', 'x'], '--toString'],
+    [['--__proto__', 'x'], '--__proto__'],
   ])('names unknown option %j without echoing values', (args, name) => {
     expect(main(args)).toBe(1);
     expect(output(stderr)).toBe(
@@ -207,6 +210,14 @@ describe('main', () => {
     expect(main(['-h'])).toBe(0);
     expect(output(stdout)).toContain('-v, --version');
   });
+
+  it.each(['__proto__', 'toString', 'constructor', 'hasOwnProperty'])(
+    'treats the inherited property name %j as a file, not a subcommand',
+    name => {
+      expect(main([name])).toBe(1);
+      expect(output(stderr)).toBe('Shortcuts Doctor: Cannot read the supplied export file.\n');
+    }
+  );
 
   it('treats option-like names after -- as file names', () => {
     expect(main(['--', '--bogus'])).toBe(1);
