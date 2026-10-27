@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It checks the file list, executable bit, shebang, and exit codes 0, 1, and 2. Run it locally
   with `pnpm smoke:pack` (#31).
 
+### Fixed
+
+- The release workflow now fails if the pushed tag doesn't match the package versions, and the
+  npm job fails if that version is already published instead of skipping quietly (#30).
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed
