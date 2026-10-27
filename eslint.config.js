@@ -7,6 +7,7 @@ export default tseslint.config(
   {
     ignores: [
       'coverage/',
+      '.claude/',
       'dist/',
       'packages/cli/dist/',
       'apps/web/dist/',

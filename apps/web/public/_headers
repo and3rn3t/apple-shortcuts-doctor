@@ -1,0 +1,11 @@
+# Response headers for Workers static assets (https://developers.cloudflare.com/workers/static-assets/headers/).
+# The page loads only its own bundled script and stylesheet and can open no connection of any kind,
+# so an export dropped on it has nowhere to go. scripts/check-web-build.mjs enforces this file.
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: accelerometer=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), microphone=(), midi=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin

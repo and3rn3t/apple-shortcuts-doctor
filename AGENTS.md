@@ -37,6 +37,7 @@ scripts/build-skill.mjs       esbuild bundler (+ --check drift mode)
 scripts/build-cli.mjs         esbuild bundle of the npm bin (packages/cli/dist, gitignored)
 scripts/profile-exports.mjs   stats-only format profile of real exports (docs/research/)
 scripts/changelog.mjs         check / preview / release changelog.d/ fragments into CHANGELOG.md
+scripts/check-web-build.mjs   web build guard: no network APIs, no external or inline resources, strict CSP
 tests/integration/            tests against the bundled script, as an installed skill runs it
 tests/fixtures/               synthetic exports; never commit real personal Shortcuts
 ```
