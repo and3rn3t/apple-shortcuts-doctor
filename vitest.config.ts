@@ -9,6 +9,8 @@ export default defineConfig({
       'apps/*/test/**/*.test.{ts,tsx}',
       'tests/**/*.test.ts',
     ],
+    // Claude Code worktrees hold full copies of the repo, tests included.
+    exclude: ['**/node_modules/**', '.claude/**'],
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.ts', 'apps/web/src/**/*.{ts,tsx}'],
