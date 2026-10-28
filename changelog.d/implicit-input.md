@@ -8,3 +8,6 @@
   (each has an explicit `WFInput` in at least 85% of its uses in 138 real exports), skips block
   markers and comments when finding the previous action, and gives the first action none.
   Checked on those exports: 244 inferred edges (207 on `setvariable`), no failures.
+
+- An Otherwise or menu item takes its inferred input from what flowed into the block, not from the
+  branch before it, since the two never run on the same path.
