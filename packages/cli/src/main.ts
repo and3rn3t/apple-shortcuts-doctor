@@ -15,6 +15,7 @@ const USAGE = [
   '  --format-version 1|2      JSON report version (default: 2)',
   '  --fail-on review|warning  Exit 2 if any finding is at or above this severity',
   '  --show-variable-names     Include variable names (untrusted text) in the report',
+  '  --show-hosts              Include hostnames of literal request URLs in the report',
   '  --quiet                   Do not print the report (errors and --fail-on notes still print)',
   '  -v, --version             Print the version',
   '  -h, --help                Show this help',
@@ -33,6 +34,7 @@ const INSPECT_OPTIONS = {
   'format-version': { type: 'string' },
   'fail-on': { type: 'string' },
   'show-variable-names': { type: 'boolean' },
+  'show-hosts': { type: 'boolean' },
   quiet: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
@@ -45,6 +47,7 @@ interface InspectArgs {
   formatVersion: 1 | 2;
   failOn: Severity | undefined;
   showVariableNames: boolean;
+  showHosts: boolean;
   quiet: boolean;
   files: string[];
   help: boolean;
@@ -107,6 +110,7 @@ function parseInspectArgs(argv: string[]): InspectArgs | UnknownOption | undefin
     formatVersion,
     failOn,
     showVariableNames: values['show-variable-names'] ?? false,
+    showHosts: values['show-hosts'] ?? false,
     quiet: values.quiet ?? false,
     files: positionals,
     help: values.help ?? false,
@@ -138,6 +142,7 @@ function inspect(argv: string[]): number {
   try {
     const report = inspectWorkflow(parseExport(readExport(args.files[0] as string)), {
       includeVariableNames: args.showVariableNames,
+      includeHosts: args.showHosts,
     });
     const legacyJson = args.format === 'json' && args.formatVersion === 1;
     if (!args.quiet) {

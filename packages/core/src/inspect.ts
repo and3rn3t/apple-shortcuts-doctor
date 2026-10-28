@@ -1,4 +1,5 @@
 import { sourceToSinkFindings } from './flow.ts';
+import { requestShape } from './request.ts';
 import {
   ACTION_PREFIX,
   BASIC_ACTIONS,
@@ -481,6 +482,7 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
     findings.push(...magicInputFindings(variableUse.magicInputs, position));
     const flow = controlFlow.flows[index];
     const parameters = action.WFWorkflowActionParameters ?? {};
+    const request = requestShape(identifier, parameters, options.includeHosts === true);
     const inferredInputFrom =
       previousOutput !== undefined &&
       IMPLICIT_INPUT_ACTIONS.has(identifier) &&
@@ -502,6 +504,7 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
       ...references,
       ...variableUse,
       ...(inferredInputFrom === undefined ? {} : { inferredInputFrom }),
+      ...(request ? { request } : {}),
       depth: controlFlow.depths[index] ?? 0,
       ...(flow ? { flow } : {}),
     };

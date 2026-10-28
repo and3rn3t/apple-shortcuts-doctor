@@ -54,6 +54,7 @@ actions. Which findings reach a `--fail-on` threshold is unchanged.
 | `--format-version 1\|2`     | JSON report version (default `2`; schema in the repository)                    |
 | `--fail-on review\|warning` | Exit `2` if any finding is at or above this severity                           |
 | `--show-variable-names`     | Include variable names in the report (off by default; they are untrusted text) |
+| `--show-hosts`              | Include hostnames of literal request URLs (off by default; untrusted text)     |
 | `--quiet`                   | Do not print the report (errors and `--fail-on` notes still print)             |
 | `-v`, `--version`           | Print the version                                                              |
 | `-h`, `--help`              | Show usage                                                                     |
@@ -103,4 +104,6 @@ variable token that reads the clipboard, device details, and so on without a sep
 `WARNING possible-flow (#4, #7, #35)` means data from sensitive inputs #4 and #7 may reach outbound
 action #35; the `possible path:` lines under it show example routes. It is derived from references,
 variables, and inferred default inputs, so it says "may", never "does". Indentation and `{block N ...}` show if / menu / repeat blocks. Variable names appear only with
-`--show-variable-names`.
+`--show-variable-names`. `{POST, json body, 2 headers, dynamic URL}` describes the shape of a Get
+Contents of URL request (never its URL, headers, or body); `--show-hosts` adds the hostname of a
+literal URL.

@@ -134,6 +134,36 @@ describe('main', () => {
     });
   });
 
+  describe('--show-hosts', () => {
+    const file = (): string =>
+      writeExport(
+        'host.json',
+        JSON.stringify({
+          WFWorkflowActions: [
+            {
+              WFWorkflowActionIdentifier: 'is.workflow.actions.downloadurl',
+              WFWorkflowActionParameters: { WFURL: 'https://host.example.invalid/path?q=1' },
+            },
+          ],
+        })
+      );
+
+    it('leaves the host out by default and adds only the hostname with the flag', () => {
+      expect(main(['--format', 'json', '--', file()])).toBe(0);
+      expect(output(stdout)).not.toContain('example.invalid');
+      stdout.mockClear();
+      expect(main(['--format', 'json', '--show-hosts', '--', file()])).toBe(0);
+      const request = JSON.parse(output(stdout)).actions[0].request;
+      expect(request.host).toBe('host.example.invalid');
+      expect(output(stdout)).not.toMatch(/\/path|q=1/);
+    });
+
+    it('is listed in the usage text', () => {
+      main(['--help']);
+      expect(output(stdout)).toContain('--show-hosts');
+    });
+  });
+
   it.each([['--format-version', '3'], ['--format-version']])('rejects %j', (...args) => {
     expect(main([...args, 'x'])).toBe(1);
     expect(output(stdout)).toContain('Usage:');

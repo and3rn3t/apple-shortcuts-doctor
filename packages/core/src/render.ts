@@ -1,5 +1,5 @@
 import { ACTION_PREFIX } from './rules.ts';
-import type { Finding, InspectedAction, Report } from './types.ts';
+import type { Finding, InspectedAction, Report, RequestShape } from './types.ts';
 
 export type ReportFormat = 'text' | 'json' | 'md';
 
@@ -13,6 +13,31 @@ export function displayIdentifier(identifier: string): string {
 
 function markdownCode(text: string): string {
   return `\`${text.replaceAll('`', "'")}\``;
+}
+
+const METHOD_TEXT: Record<RequestShape['method'], string> = {
+  default: 'default method',
+  get: 'GET',
+  post: 'POST',
+  put: 'PUT',
+  patch: 'PATCH',
+  delete: 'DELETE',
+  dynamic: 'method from a variable',
+  other: 'other method',
+};
+const URL_TEXT: Record<RequestShape['url'], string> = {
+  literal: 'literal URL',
+  dynamic: 'dynamic URL',
+  missing: 'no URL',
+};
+
+/** One line about a request's shape, such as `POST, json body, 2 headers, dynamic URL`. */
+export function describeRequest(request: RequestShape): string {
+  const body = request.body === 'none' ? 'no body' : `${request.body} body`;
+  const headers = `${request.headers} header${request.headers === 1 ? '' : 's'}`;
+  const parts = [METHOD_TEXT[request.method], body, headers, URL_TEXT[request.url]];
+  if (request.host) parts.push(`host ${request.host}`);
+  return parts.join(', ');
 }
 
 const MAX_INDENT_DEPTH = 10;
@@ -36,6 +61,7 @@ function actionLine(
   const inferred = action.inferredInputFrom ? ` <? #${action.inferredInputFrom}` : '';
   const unresolved = unresolvedNote(action);
   const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : '';
+  const request = action.request ? ` {${describeRequest(action.request)}}` : '';
   const inputs = action.magicInputs?.length ? ` {reads ${action.magicInputs.join(', ')}}` : '';
   const names = action.variableNames?.length
     ? ` {variables ${action.variableNames.map(name => label(name)).join(', ')}}`
@@ -45,7 +71,7 @@ function actionLine(
     style === 'markdown'
       ? `${'  '.repeat(level)}- ${action.index}\\.`
       : `${'  '.repeat(level)}${action.index}.`;
-  return `${lead} ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${inferred}${unresolved}`;
+  return `${lead} ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${request}${inputs}${names}${depends}${viaVariables}${inferred}${unresolved}`;
 }
 
 function unresolvedNote(action: InspectedAction): string {
