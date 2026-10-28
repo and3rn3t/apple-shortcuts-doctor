@@ -126,6 +126,13 @@ function ActionItem({ action }: { action: InspectedAction }): React.JSX.Element 
           uses variables set by <ActionLinks indexes={action.usesVariables} />
         </span>
       ) : null}
+      {action.inferredInputFrom ? (
+        <span className="where">
+          {' '}
+          probably takes the output of <ActionLinks indexes={[action.inferredInputFrom]} />{' '}
+          (inferred)
+        </span>
+      ) : null}
       {action.magicInputs?.length ? (
         <span className="where"> reads {action.magicInputs.join(', ')}</span>
       ) : null}

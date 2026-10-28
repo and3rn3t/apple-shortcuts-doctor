@@ -292,3 +292,12 @@ describe('variables and magic inputs', () => {
     expect(headingTexts(5)).toContain('Sensitive inputs');
   });
 });
+
+describe('inferred input', () => {
+  it('says the input is inferred and links to the action it probably comes from', () => {
+    show(reportOf(action('gettext'), action('setvariable', { WFVariableName: 'x' })));
+    const second = document.querySelector('#action-2') as HTMLElement;
+    expect(second.textContent).toContain('probably takes the output of #1 (inferred)');
+    expect(document.querySelector('#action-1')?.textContent).not.toContain('inferred');
+  });
+});

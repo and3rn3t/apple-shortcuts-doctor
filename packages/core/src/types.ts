@@ -47,6 +47,11 @@ export interface InspectedAction {
   usesVariables: number[];
   /** Reads of variables no earlier action sets (excluding Repeat Item and Repeat Index). */
   unresolvedVariableCount: number;
+  /**
+   * Inferred, not stated in the export: this action sets no input of its own, so it probably
+   * receives the output of this earlier action (1-based). Distinct from `dependsOn`.
+   */
+  inferredInputFrom?: number;
   /** Inputs read through variable tokens, such as the clipboard. Absent when there are none. */
   magicInputs?: MagicInput[];
   /** Names of the variables this action sets or reads. Present only with `includeVariableNames`. */
@@ -87,7 +92,13 @@ export interface ReportV1 {
   actionCount: number;
   actions: Omit<
     InspectedAction,
-    'depth' | 'flow' | 'usesVariables' | 'unresolvedVariableCount' | 'magicInputs' | 'variableNames'
+    | 'depth'
+    | 'flow'
+    | 'inferredInputFrom'
+    | 'usesVariables'
+    | 'unresolvedVariableCount'
+    | 'magicInputs'
+    | 'variableNames'
   >[];
   findings: Omit<Finding, 'ruleId'>[];
   limitations: string[];

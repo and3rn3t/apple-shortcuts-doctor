@@ -96,7 +96,9 @@ jobs:
 
 `<- #3` means the action uses the output of action 3 through an explicit reference. `<~ #3, #6`
 means it reads a variable that action 3 or 6 set (matched by name to the closest earlier `Set
-Variable` or `Add to Variable`; branches and loops are not followed). `{reads clipboard}` marks a
+Variable` or `Add to Variable`; branches and loops are not followed). `<? #3` means the action sets no input of its own and probably takes the output of action 3: an
+inference for a short list of actions that default to the previous output, never stated in the
+export. `{reads clipboard}` marks a
 variable token that reads the clipboard, device details, and so on without a separate action.
 Indentation and `{block N ...}` show if / menu / repeat blocks. Variable names appear only with
 `--show-variable-names`.

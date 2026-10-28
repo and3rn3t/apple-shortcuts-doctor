@@ -282,6 +282,37 @@ var BASIC_ACTIONS = new Set(
 function isAppleIdentifier(identifier) {
   return identifier.startsWith(ACTION_PREFIX) || identifier.startsWith(APPLE_INTENT_PREFIX);
 }
+var IMPLICIT_INPUT_IDS = [
+  "setvariable",
+  "appendvariable",
+  "getvalueforkey",
+  "math",
+  "round",
+  "detect.dictionary",
+  "detect.text",
+  "detect.number",
+  "detect.link",
+  "choosefromlist",
+  "getitemfromlist",
+  "getitemtype",
+  "setitemname",
+  "text.replace",
+  "base64encode",
+  "urlencode",
+  "hash",
+  "openurl",
+  "setclipboard",
+  "documentpicker.save",
+  "previewdocument",
+  "file.delete",
+  "file.append",
+  "runworkflow",
+  "measurement.convert"
+];
+var IMPLICIT_INPUT_ACTIONS = new Set(
+  IMPLICIT_INPUT_IDS.map((id) => `${ACTION_PREFIX}${id}`)
+);
+var PASSES_NO_OUTPUT = /* @__PURE__ */ new Set([`${ACTION_PREFIX}comment`]);
 
 // packages/core/src/inspect.ts
 var MAX_ACTIONS = 2e3;
@@ -292,7 +323,7 @@ var LIMITATIONS = [
   "Parameters are omitted. Action identifiers are untrusted and may reveal app usage.",
   "Rules cover a limited set of action identifiers, not every Apple or third-party action.",
   "Dependencies show explicit OutputUUID references, not proven runtime data flows.",
-  "Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Implicit input, nested workflows, and permissions are not resolved.",
+  "Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Where an action takes the output of the previous action by default, that is an inference and is marked as one. Nested workflows and permissions are not resolved.",
   "No findings does not mean safe; destinations, payloads, and runtime behavior need manual review."
 ];
 function isRecord(value) {
@@ -613,6 +644,7 @@ function inspectWorkflow(workflow, options = {}) {
   const findings = duplicateOutputFindings(uuidIndexes);
   const controlFlow = analyzeControlFlow(rawActions);
   const variables = new VariableTracker(options.includeVariableNames === true);
+  let previousOutput;
   findings.push(...controlFlow.unbalanced.map(unbalancedControlFlowFinding));
   const actions = rawActions.map((action, index) => {
     const position = index + 1;
@@ -630,6 +662,11 @@ function inspectWorkflow(workflow, options = {}) {
     const variableUse = variables.visit(action, position);
     findings.push(...magicInputFindings(variableUse.magicInputs, position));
     const flow = controlFlow.flows[index];
+    const parameters = action.WFWorkflowActionParameters ?? {};
+    const inferredInputFrom = previousOutput !== void 0 && IMPLICIT_INPUT_ACTIONS.has(identifier) && !("WFInput" in parameters) ? previousOutput : void 0;
+    if (!("WFControlFlowMode" in parameters) && !PASSES_NO_OUTPUT.has(identifier)) {
+      previousOutput = position;
+    }
     return {
       index: position,
       identifier,
@@ -637,6 +674,7 @@ function inspectWorkflow(workflow, options = {}) {
       category: rule2?.category ?? (recognized ? "basic" : "unknown"),
       ...references,
       ...variableUse,
+      ...inferredInputFrom === void 0 ? {} : { inferredInputFrom },
       depth: controlFlow.depths[index] ?? 0,
       ...flow ? { flow } : {}
     };
@@ -1113,12 +1151,13 @@ var ROLE_LABELS = { start: "start", middle: "else/item", end: "end" };
 function actionLine(action, label, indentUnit) {
   const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(", #")}` : "";
   const viaVariables = action.usesVariables.length ? ` <~ #${action.usesVariables.join(", #")}` : "";
+  const inferred = action.inferredInputFrom ? ` <? #${action.inferredInputFrom}` : "";
   const unresolved = unresolvedNote(action);
   const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : "";
   const inputs = action.magicInputs?.length ? ` {reads ${action.magicInputs.join(", ")}}` : "";
   const names = action.variableNames?.length ? ` {variables ${action.variableNames.map((name) => label(name)).join(", ")}}` : "";
   const indent = indentUnit.repeat(Math.min(action.depth, MAX_INDENT_DEPTH));
-  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${unresolved}`;
+  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${inferred}${unresolved}`;
 }
 function unresolvedNote(action) {
   const notes = [

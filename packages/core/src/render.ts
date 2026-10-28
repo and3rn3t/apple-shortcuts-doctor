@@ -29,6 +29,7 @@ function actionLine(
   const viaVariables = action.usesVariables.length
     ? ` <~ #${action.usesVariables.join(', #')}`
     : '';
+  const inferred = action.inferredInputFrom ? ` <? #${action.inferredInputFrom}` : '';
   const unresolved = unresolvedNote(action);
   const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : '';
   const inputs = action.magicInputs?.length ? ` {reads ${action.magicInputs.join(', ')}}` : '';
@@ -36,7 +37,7 @@ function actionLine(
     ? ` {variables ${action.variableNames.map(name => label(name)).join(', ')}}`
     : '';
   const indent = indentUnit.repeat(Math.min(action.depth, MAX_INDENT_DEPTH));
-  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${unresolved}`;
+  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${inferred}${unresolved}`;
 }
 
 function unresolvedNote(action: InspectedAction): string {

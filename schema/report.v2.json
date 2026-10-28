@@ -140,6 +140,9 @@
             "type": "integer",
             "minimum": 0
           },
+          "inferredInputFrom": {
+            "$ref": "#/$defs/actionIndex"
+          },
           "usesVariables": {
             "type": "array",
             "items": {
