@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MAX_BYTES, parseExport } from '@shortcuts-doctor/core';
 import { App } from '../src/App.tsx';
@@ -123,7 +123,8 @@ describe('inspector input', () => {
     expect(screen.queryByRole('heading', { name: 'Report' })).toBeNull();
     chooseFile(fileOf([fixture('mixed-actions.json')], 'a.json'));
     const heading = await screen.findByRole('heading', { name: 'Report' });
-    expect(document.activeElement).toBe(heading);
+    // Focus is set in an effect after the heading renders, which can land a tick later on a slow runner.
+    await waitFor(() => expect(document.activeElement).toBe(heading));
     expect(screen.getAllByRole('listitem').length).toBeGreaterThan(8);
     // A later error removes the stale report instead of leaving it beside the message.
     chooseFile(fileOf(['nope'], 'bad.json'));
