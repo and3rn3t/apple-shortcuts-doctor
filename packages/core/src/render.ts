@@ -15,12 +15,23 @@ function markdownCode(text: string): string {
   return `\`${text.replaceAll('`', "'")}\``;
 }
 
-function actionLine(action: InspectedAction, label: (text: string) => string): string {
+const MAX_INDENT_DEPTH = 10;
+
+const ROLE_LABELS = { start: 'start', middle: 'else/item', end: 'end' } as const;
+
+/** Nested actions are indented under their block; very deep nesting stops indenting. */
+function actionLine(
+  action: InspectedAction,
+  label: (text: string) => string,
+  indentUnit: string
+): string {
   const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(', #')}` : '';
   const unresolved = action.unresolvedReferenceCount
     ? ` (${action.unresolvedReferenceCount} unresolved reference(s))`
     : '';
-  return `${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${depends}${unresolved}`;
+  const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : '';
+  const indent = indentUnit.repeat(Math.min(action.depth, MAX_INDENT_DEPTH));
+  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${depends}${unresolved}`;
 }
 
 function findingLine(finding: Finding): string {
@@ -39,7 +50,7 @@ export function renderText(report: Report): string {
     '',
     ...section(
       'Actions',
-      report.actions.map(action => actionLine(action, text => text)),
+      report.actions.map(action => actionLine(action, text => text, '  ')),
       '(none)'
     ),
     '',
@@ -64,7 +75,7 @@ export function renderMarkdown(report: Report): string {
     '',
     ...section(
       '## Actions',
-      report.actions.map(action => actionLine(action, markdownCode)),
+      report.actions.map(action => actionLine(action, markdownCode, '   ')),
       '_None._'
     ),
     '',

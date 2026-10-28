@@ -229,3 +229,40 @@ describe('labels', () => {
     expect(new Set(FINDING_ORDER).size).toBe(FINDING_ORDER.length);
   });
 });
+
+describe('control-flow blocks', () => {
+  const block = (mode: number, group: string): unknown =>
+    action('conditional', { GroupingIdentifier: group, WFControlFlowMode: mode });
+
+  it('indents actions inside a block and names where each block starts, continues, and ends', () => {
+    show(reportOf(block(0, 'A'), action('text'), block(1, 'A'), action('text'), block(2, 'A')));
+    const items = [...document.querySelectorAll('.action-list > li')];
+    expect(items.map(item => item.className)).toEqual([
+      'depth-0',
+      'depth-1',
+      'depth-0',
+      'depth-1',
+      'depth-0',
+    ]);
+    expect(items[0]?.textContent).toContain('starts block 1');
+    expect(items[2]?.textContent).toContain('continues block 1');
+    expect(items[4]?.textContent).toContain('ends block 1');
+  });
+
+  it('stops indenting at a fixed depth', () => {
+    const opens = Array.from({ length: 12 }, (_, i) => block(0, `g${i}`));
+    show(reportOf(...opens, action('text')));
+    const last = [...document.querySelectorAll('.action-list > li')].at(-1);
+    expect(last?.className).toBe('depth-8');
+  });
+
+  it('reports an unbalanced block as a warning finding', () => {
+    show(reportOf(block(0, 'A')));
+    expect(headingTexts(5)).toContain('Unbalanced blocks');
+  });
+
+  it('never renders a group id', () => {
+    show(reportOf(block(0, 'SECRET-GROUP'), block(2, 'SECRET-GROUP')));
+    expect(document.body.innerHTML).not.toContain('SECRET-GROUP');
+  });
+});

@@ -97,12 +97,23 @@ function Findings({ findings }: { findings: readonly Finding[] }): React.JSX.Ele
   );
 }
 
+const ROLE_TEXT = { start: 'starts', middle: 'continues', end: 'ends' } as const;
+/** Nesting deeper than this stops indenting, so a phone-width screen never overflows. */
+const MAX_INDENT_DEPTH = 8;
+
 function ActionItem({ action }: { action: InspectedAction }): React.JSX.Element {
+  const depth = Math.min(action.depth, MAX_INDENT_DEPTH);
   return (
-    <li id={`action-${action.index}`} tabIndex={-1}>
+    <li id={`action-${action.index}`} tabIndex={-1} className={`depth-${depth}`}>
       {/* Identifiers come from the export and are untrusted: shown as text only, never as HTML. */}
       <code>{displayIdentifier(action.identifier)}</code>{' '}
       <span className="category">{action.category}</span>
+      {action.flow ? (
+        <span className="where">
+          {' '}
+          {ROLE_TEXT[action.flow.role]} block {action.flow.block}
+        </span>
+      ) : null}
       {action.dependsOn.length ? (
         <span className="where">
           {' '}

@@ -145,6 +145,31 @@ button.secondary {
   overflow-wrap: anywhere;
 }
 
+.action-list li.depth-1 {
+  margin-left: 1.25rem;
+}
+.action-list li.depth-2 {
+  margin-left: 2.5rem;
+}
+.action-list li.depth-3 {
+  margin-left: 3.75rem;
+}
+.action-list li.depth-4 {
+  margin-left: 5rem;
+}
+.action-list li.depth-5 {
+  margin-left: 6.25rem;
+}
+.action-list li.depth-6 {
+  margin-left: 7.5rem;
+}
+.action-list li.depth-7 {
+  margin-left: 8.75rem;
+}
+.action-list li.depth-8 {
+  margin-left: 10rem;
+}
+
 .action-list li:target {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

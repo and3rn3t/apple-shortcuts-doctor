@@ -2,6 +2,7 @@ import { ACTION_PREFIX, BASIC_ACTIONS, isAppleIdentifier, RULES } from './rules.
 import type {
   ActionCategory,
   Finding,
+  FlowPosition,
   InspectedAction,
   Report,
   ReportSummary,
@@ -18,7 +19,7 @@ export const LIMITATIONS: readonly string[] = [
   'Parameters are omitted. Action identifiers are untrusted and may reveal app usage.',
   'Rules cover a limited set of action identifiers, not every Apple or third-party action.',
   'Dependencies show explicit OutputUUID references, not proven runtime data flows.',
-  'Implicit input, variables, branches, loops, nested workflows, and permissions are not resolved.',
+  'Blocks (if, menu, repeat) are shown as structure and never evaluated. Implicit input, variables, nested workflows, and permissions are not resolved.',
   'No findings does not mean safe; destinations, payloads, and runtime behavior need manual review.',
 ];
 
@@ -152,6 +153,85 @@ function classificationFinding(identifier: string, position: number): Finding | 
   };
 }
 
+interface ControlFlow {
+  flows: (FlowPosition | undefined)[];
+  depths: number[];
+  /** 1-based positions of actions that open, continue, or close a block incorrectly. */
+  unbalanced: number[];
+}
+
+interface OpenBlock {
+  id: string;
+  block: number;
+  position: number;
+}
+
+/**
+ * Reads the block structure of if / menu / repeat actions from WFControlFlowMode (0 start, 1 middle,
+ * 2 end) and GroupingIdentifier, without looking at identifiers or copying the grouping ids. A
+ * start with no end, an end with no start, a middle or end that belongs to an outer block, a reused
+ * group id, or an unreadable mode all mark the action as unbalanced.
+ */
+function analyzeControlFlow(rawActions: RawAction[]): ControlFlow {
+  const open: OpenBlock[] = [];
+  const used = new Set<string>();
+  const unbalanced = new Set<number>();
+  const flows: (FlowPosition | undefined)[] = [];
+  const depths: number[] = [];
+  let blocks = 0;
+  rawActions.forEach((action, index) => {
+    const position = index + 1;
+    const parameters = action.WFWorkflowActionParameters;
+    const mode = parameters?.WFControlFlowMode;
+    const id = parameters?.GroupingIdentifier;
+    flows.push(undefined);
+    depths.push(open.length);
+    if (mode === undefined) return;
+    if (!(mode === 0 || mode === 1 || mode === 2) || typeof id !== 'string' || id === '') {
+      unbalanced.add(position);
+      return;
+    }
+    if (mode === 0) {
+      if (used.has(id)) unbalanced.add(position);
+      used.add(id);
+      blocks++;
+      flows[index] = { block: blocks, role: 'start' };
+      open.push({ id, block: blocks, position });
+      return;
+    }
+    let target = open.length - 1;
+    while (target >= 0 && open[target]?.id !== id) target--;
+    const found = open[target];
+    if (!found) {
+      unbalanced.add(position);
+      return;
+    }
+    // Blocks opened after the one this action belongs to were never closed.
+    for (const skipped of open.splice(target + 1)) unbalanced.add(skipped.position);
+    if (mode === 1) {
+      depths[index] = open.length - 1;
+      flows[index] = { block: found.block, role: 'middle' };
+      return;
+    }
+    open.pop();
+    depths[index] = open.length;
+    flows[index] = { block: found.block, role: 'end' };
+  });
+  for (const block of open) unbalanced.add(block.position);
+  return { flows, depths, unbalanced: [...unbalanced].sort((a, b) => a - b) };
+}
+
+function unbalancedControlFlowFinding(position: number): Finding {
+  return {
+    code: 'unbalanced-control-flow',
+    ruleId: 'unbalanced-control-flow',
+    severity: 'warning',
+    actions: [position],
+    message:
+      'A control-flow block is unbalanced: a start, else or menu item, or end is missing or out of order. Verify it in Shortcuts.',
+  };
+}
+
 function unresolvedReferenceFinding(position: number): Finding {
   return {
     code: 'unresolved-reference',
@@ -210,7 +290,14 @@ export function toReportV1(report: Report): ReportV1 {
   return {
     formatVersion: 1,
     actionCount: report.actionCount,
-    actions: report.actions,
+    actions: report.actions.map(action => ({
+      index: action.index,
+      identifier: action.identifier,
+      recognized: action.recognized,
+      category: action.category,
+      dependsOn: action.dependsOn,
+      unresolvedReferenceCount: action.unresolvedReferenceCount,
+    })),
     findings: report.findings.map(finding => ({
       code: finding.code,
       severity: finding.severity,
@@ -229,6 +316,8 @@ export function inspectWorkflow(workflow: unknown): Report {
   const rawActions = validateWorkflow(workflow);
   const uuidIndexes = indexOutputUuids(rawActions);
   const findings = duplicateOutputFindings(uuidIndexes);
+  const controlFlow = analyzeControlFlow(rawActions);
+  findings.push(...controlFlow.unbalanced.map(unbalancedControlFlowFinding));
   const actions = rawActions.map((action, index): InspectedAction => {
     const position = index + 1;
     const identifier = action.WFWorkflowActionIdentifier;
@@ -242,12 +331,15 @@ export function inspectWorkflow(workflow: unknown): Report {
       uuidIndexes
     );
     if (references.unresolvedReferenceCount) findings.push(unresolvedReferenceFinding(position));
+    const flow = controlFlow.flows[index];
     return {
       index: position,
       identifier,
       recognized,
       category: rule?.category ?? (recognized ? 'basic' : 'unknown'),
       ...references,
+      depth: controlFlow.depths[index] ?? 0,
+      ...(flow ? { flow } : {}),
     };
   });
   const grouped = groupFindings(findings);

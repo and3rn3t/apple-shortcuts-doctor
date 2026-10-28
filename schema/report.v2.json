@@ -111,7 +111,8 @@
           "recognized",
           "category",
           "dependsOn",
-          "unresolvedReferenceCount"
+          "unresolvedReferenceCount",
+          "depth"
         ],
         "properties": {
           "index": {
@@ -136,6 +137,25 @@
           "unresolvedReferenceCount": {
             "type": "integer",
             "minimum": 0
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "flow": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["block", "role"],
+            "properties": {
+              "block": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "role": {
+                "enum": ["start", "middle", "end"]
+              }
+            }
           }
         }
       }
@@ -156,7 +176,8 @@
               "dependency",
               "unknown-action",
               "duplicate-output",
-              "unresolved-reference"
+              "unresolved-reference",
+              "unbalanced-control-flow"
             ]
           },
           "ruleId": {

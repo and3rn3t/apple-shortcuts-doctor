@@ -64,3 +64,30 @@ describe('renderers', () => {
     expect(JSON.parse(renderReport(report, 'json')).formatVersion).toBe(2);
   });
 });
+
+describe('nested blocks in the renderers', () => {
+  const block = (mode: number, group: string): ReturnType<typeof action> =>
+    action('conditional', { GroupingIdentifier: group, WFControlFlowMode: mode });
+  const nested = inspectWorkflow(
+    workflow(block(0, 'A'), action('text'), block(1, 'A'), block(2, 'A'))
+  );
+
+  it('indents text output under its block and labels the block roles', () => {
+    const lines = renderText(nested).split('\n');
+    expect(lines).toContain('1. conditional [basic] {block 1 start}');
+    expect(lines).toContain('  2. text [basic]');
+    expect(lines).toContain('3. conditional [basic] {block 1 else/item}');
+    expect(lines).toContain('4. conditional [basic] {block 1 end}');
+  });
+
+  it('indents markdown by three spaces per level so it nests as a list', () => {
+    expect(renderMarkdown(nested).split('\n')).toContain('   2. `text` [basic]');
+  });
+
+  it('stops indenting at ten levels', () => {
+    const open = Array.from({ length: 14 }, (_, i) => block(0, `g${i}`));
+    const lines = renderText(inspectWorkflow(workflow(...open, action('text')))).split('\n');
+    const text = lines.find(line => line.includes('. text'));
+    expect(text?.search(/\S/)).toBe(20);
+  });
+});
