@@ -13,3 +13,10 @@
 - Checked on 138 real exports: 11 with a secret-named field and 21 with a lone random token, none
   with a known token format, no failures, 0.4 s for all of them. Scanning runs inside text flagged
   40% of Shortcuts (URLs and encoded blobs), so only a whole-value token counts.
+
+### Fixed
+
+- Secret scanning is linear in the size of the export: a JWT is found by splitting runs of token
+  characters once (a regular expression retried at every `eyJ`), binary plist data and dates are
+  leaves instead of being walked byte by byte, and a literal fragment next to a variable is no
+  longer mistaken for a complete query value or a whole random token.

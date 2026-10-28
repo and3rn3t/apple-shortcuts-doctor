@@ -207,7 +207,6 @@ var TOKEN_FORMATS = [
   /sk_live_[A-Za-z0-9]{16,}/,
   /sk-(?:ant-|proj-)?[A-Za-z0-9_-]{32,}/,
   /AIza[0-9A-Za-z_-]{30,}/,
-  /eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
   /-----BEGIN [A-Z ]{0,30}PRIVATE KEY-----/,
   /\b(?:Bearer|Basic) [A-Za-z0-9._~+/=-]{20,}/,
   /[a-z][a-z0-9+.-]{0,20}:\/\/[^\s/:@]{1,100}:[^\s/@]{3,100}@/i
@@ -217,7 +216,9 @@ var SECRET_IN_QUERY = /[?&;](?:api[-_]?key|apikey|access[-_]?token|token|secret|
 var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var AUTH_SCHEME = /^(?:Bearer|Basic|Token)\s+/i;
 function isRecord2(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 function readText2(value) {
   if (typeof value === "string") return value;
@@ -256,8 +257,24 @@ function isWholeRandomToken(text) {
   const token = text.trim();
   return /^[A-Za-z0-9_-]{24,200}$/.test(token) && looksRandom(token);
 }
+function hasJwt(text) {
+  for (const run of text.matchAll(/[A-Za-z0-9_.-]{38,}/g)) {
+    const segments = run[0].split(".");
+    for (let index = 0; index + 2 < segments.length; index++) {
+      const [header, payload, signature] = [
+        segments[index],
+        segments[index + 1],
+        segments[index + 2]
+      ];
+      if (header?.startsWith("eyJ") && payload?.startsWith("eyJ") && header.length >= 13 && payload.length >= 13 && (signature?.length ?? 0) >= 10) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 function matchesTokenFormat(text) {
-  return TOKEN_FORMATS.some((format) => format.test(text));
+  return hasJwt(text) || TOKEN_FORMATS.some((format) => format.test(text));
 }
 function hasSecretInQuery(text) {
   for (const match of text.matchAll(SECRET_IN_QUERY)) {
@@ -280,11 +297,9 @@ function findSecretKinds(parameters) {
     const { value, key } = stack.pop();
     if (typeof value === "string") {
       if (key !== void 0 && SKIP_KEYS.has(key)) continue;
-      for (const part of value.split(PLACEHOLDER2)) {
-        if (matchesTokenFormat(part)) kinds.add("format");
-        else if (hasSecretInQuery(part)) kinds.add("named");
-        else if (isWholeRandomToken(part)) kinds.add("entropy");
-      }
+      if (value.split(PLACEHOLDER2).some(matchesTokenFormat)) kinds.add("format");
+      else if (hasSecretInQuery(value)) kinds.add("named");
+      else if (isWholeRandomToken(value)) kinds.add("entropy");
       continue;
     }
     if (Array.isArray(value)) {

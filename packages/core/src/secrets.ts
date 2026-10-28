@@ -29,7 +29,6 @@ const TOKEN_FORMATS: readonly RegExp[] = [
   /sk_live_[A-Za-z0-9]{16,}/,
   /sk-(?:ant-|proj-)?[A-Za-z0-9_-]{32,}/,
   /AIza[0-9A-Za-z_-]{30,}/,
-  /eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
   /-----BEGIN [A-Z ]{0,30}PRIVATE KEY-----/,
   /\b(?:Bearer|Basic) [A-Za-z0-9._~+/=-]{20,}/,
   /[a-z][a-z0-9+.-]{0,20}:\/\/[^\s/:@]{1,100}:[^\s/@]{3,100}@/i,
@@ -42,8 +41,11 @@ const SECRET_IN_QUERY =
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const AUTH_SCHEME = /^(?:Bearer|Basic|Token)\s+/i;
 
+/** Plain objects only: plist data and dates decode to Uint8Array and Date, which are leaves. */
 function isRecord(value: unknown): value is JsonRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 /** The literal characters of a plain string or a Shortcuts rich-text value. */
@@ -97,8 +99,35 @@ function isWholeRandomToken(text: string): boolean {
   return /^[A-Za-z0-9_-]{24,200}$/.test(token) && looksRandom(token);
 }
 
+/**
+ * A JWT is three dot-separated segments, the first two starting with `eyJ` (base64 of `{"`). Found
+ * by splitting each run of token characters once, so repeated prefixes cannot make it quadratic.
+ */
+function hasJwt(text: string): boolean {
+  for (const run of text.matchAll(/[A-Za-z0-9_.-]{38,}/g)) {
+    const segments = run[0].split('.');
+    for (let index = 0; index + 2 < segments.length; index++) {
+      const [header, payload, signature] = [
+        segments[index],
+        segments[index + 1],
+        segments[index + 2],
+      ];
+      if (
+        header?.startsWith('eyJ') &&
+        payload?.startsWith('eyJ') &&
+        header.length >= 13 &&
+        payload.length >= 13 &&
+        (signature?.length ?? 0) >= 10
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function matchesTokenFormat(text: string): boolean {
-  return TOKEN_FORMATS.some(format => format.test(text));
+  return hasJwt(text) || TOKEN_FORMATS.some(format => format.test(text));
 }
 
 function hasSecretInQuery(text: string): boolean {
@@ -130,11 +159,12 @@ export function findSecretKinds(parameters: JsonRecord): Set<SecretKind> {
     const { value, key } = stack.pop() as { value: unknown; key: string | undefined };
     if (typeof value === 'string') {
       if (key !== undefined && SKIP_KEYS.has(key)) continue;
-      for (const part of value.split(PLACEHOLDER)) {
-        if (matchesTokenFormat(part)) kinds.add('format');
-        else if (hasSecretInQuery(part)) kinds.add('named');
-        else if (isWholeRandomToken(part)) kinds.add('entropy');
-      }
+      // A token shape is recognized in any literal fragment, so a variable cannot hide one. The
+      // query and whole-value checks need the complete value, so a fragment next to a variable
+      // (which may continue the value) is never mistaken for one.
+      if (value.split(PLACEHOLDER).some(matchesTokenFormat)) kinds.add('format');
+      else if (hasSecretInQuery(value)) kinds.add('named');
+      else if (isWholeRandomToken(value)) kinds.add('entropy');
       continue;
     }
     if (Array.isArray(value)) {

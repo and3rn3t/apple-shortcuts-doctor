@@ -265,6 +265,78 @@ describe('hardcoded secret detection', () => {
     expect(message).not.toContain(FIXTURES.aws);
   });
 
+  it('does not take a literal fragment beside a variable for a complete value', () => {
+    const withVariable = (string: string): unknown => ({
+      Value: {
+        string,
+        attachmentsByRange: {
+          [`{${string.length - 1}, 1}`]: { Type: 'Variable', VariableName: 'v' },
+        },
+      },
+      WFSerializationType: 'WFTextTokenString',
+    });
+    expect(
+      found(
+        action('downloadurl', {
+          WFURL: withVariable('https://host.example.invalid/x?token=clientid1\uFFFC'),
+        }),
+        action('gettext', { Text: withVariable(`${FIXTURES.highEntropy}\uFFFC`) }),
+        action('gettext', { Text: withVariable(`\uFFFC${FIXTURES.highEntropy}`) })
+      )
+    ).toEqual([]);
+    // The same literal values with no variable beside them are still flagged.
+    expect(
+      found(
+        action('downloadurl', { WFURL: 'https://host.example.invalid/x?token=clientid1' }),
+        action('gettext', { Text: FIXTURES.highEntropy })
+      ).map(f => f.ruleId)
+    ).toEqual(['secret-named-field', 'secret-high-entropy']);
+  });
+
+  it('still recognizes a token shape when a variable sits beside it', () => {
+    const beside = {
+      Value: {
+        string: `\uFFFC${FIXTURES.github}\uFFFC`,
+        attachmentsByRange: {},
+      },
+      WFSerializationType: 'WFTextTokenString',
+    };
+    expect(found(action('gettext', { Text: beside })).map(f => f.ruleId)).toEqual([
+      'secret-token-format',
+    ]);
+  });
+
+  it('recognizes a JWT only as three dot-separated segments', () => {
+    const header = join('ey', 'J', alnum(16));
+    expect(found(action('gettext', { A: `${header}.${header}.${alnum(12)}` }))).toHaveLength(1);
+    expect(found(action('gettext', { A: `${header}.${header}` }))).toEqual([]);
+    expect(found(action('gettext', { A: `${header}.${header}.${alnum(3)}` }))).toEqual([]);
+    expect(found(action('gettext', { A: `${header}.${alnum(16)}.${alnum(12)}` }))).toEqual([]);
+    expect(found(action('gettext', { A: `x.${header}.${header}.${alnum(12)}.y` }))).toHaveLength(1);
+  });
+
+  it.each([
+    ['repeated JWT prefixes with no dot', 'eyJ'.repeat(1_300_000)],
+    ['one very long token-character run', 'a'.repeat(3_000_000)],
+    ['repeated dots and prefixes', 'eyJ.'.repeat(900_000)],
+    ['repeated scheme-like starts', 'a'.repeat(30).repeat(100_000)],
+    ['repeated key prefixes', 'sk-'.repeat(1_300_000)],
+    ['repeated query markers', '?token='.repeat(500_000)],
+  ])('scans %s in linear time', (_label, hostile) => {
+    const started = Date.now();
+    found(action('gettext', { Text: hostile }));
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it('treats plist data and dates as leaves instead of walking every byte', () => {
+    const started = Date.now();
+    const kinds = found(
+      action('gettext', { Blob: new Uint8Array(6_000_000).fill(65), When: new Date(0) })
+    );
+    expect(kinds).toEqual([]);
+    expect(Date.now() - started).toBeLessThan(300);
+  });
+
   it('copes with deep nesting and very large strings quickly', () => {
     let deep: unknown = text(FIXTURES.github);
     for (let i = 0; i < 5000; i++) deep = { child: deep };
