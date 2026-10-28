@@ -29,6 +29,10 @@ workflow files kept in a repository, and the unsigned `shortcut` asset of an
 iCloud link's record. Mention that sharing an iCloud link publishes the
 Shortcut, and let the user decide; never fetch it yourself.
 
+If the user cannot run Node.js, point them to the web app at
+https://shortcuts.andernet.dev. It runs the same inspector in their browser, and the file
+never leaves their device. Do not open the site or upload anything for them.
+
 ## Safety boundaries
 
 - Inspect only a local file explicitly supplied or approved by the user. Do not
