@@ -34,6 +34,45 @@ function SignedHelp(): React.JSX.Element {
   );
 }
 
+const FETCH_COMMANDS = `url=$(curl -s https://www.icloud.com/shortcuts/api/records/<id> | python3 -c 'import json, sys; print(json.load(sys.stdin)["fields"]["shortcut"]["value"]["downloadURL"].replace("\${f}", "shortcut.plist"))')
+curl -sL -o shortcut.plist "$url"`;
+
+function ICloudLinkHelp(): React.JSX.Element {
+  return (
+    <details className="help">
+      <summary>Have an iCloud link instead?</summary>
+      <p>
+        This page can’t open iCloud links, on purpose. It is not allowed to make any network
+        connection, so your Shortcut can’t be sent anywhere, and iCloud doesn’t let web pages read
+        its link records anyway. Download the unsigned copy yourself, then choose the file above:
+      </p>
+      <ol>
+        <li>
+          In Shortcuts, choose Share → Copy iCloud Link. The link ends in an ID:{' '}
+          <code>https://www.icloud.com/shortcuts/&lt;id&gt;</code>.
+        </li>
+        <li>
+          Run this in a terminal, replacing <code>&lt;id&gt;</code> with that ID:
+          <pre>
+            <code>{FETCH_COMMANDS}</code>
+          </pre>
+        </li>
+        <li>
+          Choose <code>shortcut.plist</code> above. It should start with <code>bplist00</code>.
+        </li>
+      </ol>
+      <p>
+        Copying an iCloud link publishes the Shortcut to anyone who has the link, so remove private
+        text, tokens and URLs first.{' '}
+        <a href={GETTING_AN_EXPORT_URL} target="_blank" rel="noopener noreferrer">
+          Getting an export
+        </a>{' '}
+        has the details.
+      </p>
+    </details>
+  );
+}
+
 function Result({ state }: { state: State }): React.JSX.Element | null {
   if (state.status === 'reading') return <p>Inspecting…</p>;
   if (state.status === 'error') {
@@ -151,6 +190,7 @@ export function App(): React.JSX.Element {
         <div role="status" aria-live="polite">
           <Result state={state} />
         </div>
+        <ICloudLinkHelp />
       </section>
       {state.status === 'done' ? (
         <ReportView report={state.report} headingRef={reportHeading} />

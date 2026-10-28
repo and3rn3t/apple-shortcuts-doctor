@@ -152,6 +152,25 @@ describe('inspector input', () => {
   });
 });
 
+describe('iCloud link help', () => {
+  it('explains why links are not opened and gives the download steps, with no field for a link', () => {
+    render(<App />);
+    const help = screen.getByText('Have an iCloud link instead?').closest('details');
+    if (!help) throw new Error('No help section');
+    expect(help.open).toBe(false);
+    expect(within(help).getByText(/can’t open iCloud links, on purpose/)).toBeTruthy();
+    expect(help.querySelector('pre')?.textContent).toContain(
+      'https://www.icloud.com/shortcuts/api/records/<id>'
+    );
+    expect(help.querySelector('pre')?.textContent).toContain('"${f}"');
+    expect(within(help).getByRole('link', { name: 'Getting an export' }).getAttribute('rel')).toBe(
+      'noopener noreferrer'
+    );
+    // The page must never offer to fetch anything: no text, URL or search field.
+    expect(document.querySelectorAll('input:not([type="file"]), textarea, form')).toHaveLength(0);
+  });
+});
+
 describe('inspector errors', () => {
   it('refuses an oversized file before reading any of it', async () => {
     render(<App />);
@@ -187,7 +206,7 @@ describe('inspector errors', () => {
     chooseFile(fileOf(['{"private-key": "private-value", '], 'private-name.json'));
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Invalid JSON export.');
-    expect(screen.queryByRole('link')).toBeNull();
+    expect(within(alert).queryByRole('link')).toBeNull();
     for (const secret of ['private-key', 'private-value', 'private-name']) {
       expect(document.body.innerHTML).not.toContain(secret);
     }
@@ -246,7 +265,6 @@ describe('inspector privacy', () => {
       'private-secret-token',
       'Authorization',
       'private-shortcut-name',
-      'https://',
     ]) {
       expect(dom).not.toContain(value);
     }
