@@ -336,6 +336,15 @@ describe('control-flow structure', () => {
       [1],
     ],
     ['a block action with no group id', [block('conditional', 0, undefined)], [1]],
+    [
+      'a grouped action with no mode, between a start and its end',
+      [
+        block('conditional', 0, 'A'),
+        action('conditional', { GroupingIdentifier: 'A' }),
+        block('conditional', 2, 'A'),
+      ],
+      [2],
+    ],
     ['an empty group id', [block('conditional', 0, '')], [1]],
   ] as [string, unknown[], number[]][])('flags %s', (_label, actions, expected) => {
     const { unbalanced, report } = structure(...actions);
