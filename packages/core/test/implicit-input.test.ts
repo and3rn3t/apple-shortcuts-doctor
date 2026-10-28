@@ -60,6 +60,74 @@ describe('implicit previous-action input', () => {
     ).toEqual([undefined, undefined, undefined, 1, undefined, 4]);
   });
 
+  it('starts an Otherwise from what flowed into the If, not from the branch before it', () => {
+    expect(
+      inferred(
+        action('gettext'),
+        control('conditional', 0, 'A'),
+        action('gettext'),
+        control('conditional', 1, 'A'),
+        action('setvariable', { WFVariableName: 'x' }),
+        control('conditional', 2, 'A')
+      )
+    ).toEqual([undefined, undefined, undefined, undefined, 1, undefined]);
+  });
+
+  it('does the same for each menu item, and infers nothing when nothing flowed into the block', () => {
+    expect(
+      inferred(
+        control('choosefrommenu', 0, 'M'),
+        action('gettext'),
+        control('choosefrommenu', 1, 'M'),
+        action('math'),
+        control('choosefrommenu', 1, 'M'),
+        action('math'),
+        control('choosefrommenu', 2, 'M')
+      )
+    ).toEqual([undefined, undefined, undefined, undefined, undefined, undefined, undefined]);
+    expect(
+      inferred(
+        action('gettext'),
+        control('choosefrommenu', 0, 'M'),
+        control('choosefrommenu', 1, 'M'),
+        action('math'),
+        control('choosefrommenu', 1, 'M'),
+        action('math'),
+        control('choosefrommenu', 2, 'M')
+      )
+    ).toEqual([undefined, undefined, undefined, 1, undefined, 1, undefined]);
+  });
+
+  it('handles nested blocks: an inner Otherwise returns to what flowed into the inner If', () => {
+    expect(
+      inferred(
+        action('gettext'),
+        control('conditional', 0, 'A'),
+        action('gettext'),
+        control('conditional', 0, 'B'),
+        action('gettext'),
+        control('conditional', 1, 'B'),
+        action('math'),
+        control('conditional', 2, 'B'),
+        control('conditional', 1, 'A'),
+        action('math'),
+        control('conditional', 2, 'A')
+      )
+    ).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      3,
+      undefined,
+      undefined,
+      1,
+      undefined,
+    ]);
+  });
+
   it('chains: each input-taking action reads the one before it', () => {
     expect(
       inferred(action('gettext'), action('math'), action('round'), action('base64encode'))

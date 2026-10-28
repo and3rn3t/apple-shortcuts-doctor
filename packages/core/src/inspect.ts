@@ -460,6 +460,9 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
   const controlFlow = analyzeControlFlow(rawActions);
   const variables = new VariableTracker(options.includeVariableNames === true);
   let previousOutput: number | undefined;
+  // What flowed into each open block, so an Otherwise or menu item starts from it, not from the
+  // branch that precedes it (the two never run on the same path).
+  const inputAtBlockStart = new Map<number, number | undefined>();
   findings.push(...controlFlow.unbalanced.map(unbalancedControlFlowFinding));
   const actions = rawActions.map((action, index): InspectedAction => {
     const position = index + 1;
@@ -484,6 +487,9 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
       !('WFInput' in parameters)
         ? previousOutput
         : undefined;
+    if (flow?.role === 'start') inputAtBlockStart.set(flow.block, previousOutput);
+    else if (flow?.role === 'middle') previousOutput = inputAtBlockStart.get(flow.block);
+    else if (flow?.role === 'end') inputAtBlockStart.delete(flow.block);
     // Block markers and comments pass nothing on, so the next action's "previous output" skips them.
     if (!('WFControlFlowMode' in parameters) && !PASSES_NO_OUTPUT.has(identifier)) {
       previousOutput = position;
