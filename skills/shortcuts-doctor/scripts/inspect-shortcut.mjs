@@ -747,6 +747,7 @@ function inspectWorkflow(workflow, options = {}) {
   const controlFlow = analyzeControlFlow(rawActions);
   const variables = new VariableTracker(options.includeVariableNames === true);
   let previousOutput;
+  const inputAtBlockStart = /* @__PURE__ */ new Map();
   findings.push(...controlFlow.unbalanced.map(unbalancedControlFlowFinding));
   const actions = rawActions.map((action, index) => {
     const position = index + 1;
@@ -766,6 +767,9 @@ function inspectWorkflow(workflow, options = {}) {
     const flow = controlFlow.flows[index];
     const parameters = action.WFWorkflowActionParameters ?? {};
     const inferredInputFrom = previousOutput !== void 0 && IMPLICIT_INPUT_ACTIONS.has(identifier) && !("WFInput" in parameters) ? previousOutput : void 0;
+    if (flow?.role === "start") inputAtBlockStart.set(flow.block, previousOutput);
+    else if (flow?.role === "middle") previousOutput = inputAtBlockStart.get(flow.block);
+    else if (flow?.role === "end") inputAtBlockStart.delete(flow.block);
     if (!("WFControlFlowMode" in parameters) && !PASSES_NO_OUTPUT.has(identifier)) {
       previousOutput = position;
     }
