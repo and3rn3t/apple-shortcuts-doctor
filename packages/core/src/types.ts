@@ -8,7 +8,8 @@ export type FindingCode =
   | 'unknown-action'
   | 'duplicate-output'
   | 'unresolved-reference'
-  | 'unbalanced-control-flow';
+  | 'unbalanced-control-flow'
+  | 'possible-flow';
 
 /** Review priority, not a vulnerability verdict. */
 export type Severity = 'review' | 'warning';
@@ -62,6 +63,13 @@ export interface InspectedAction {
   flow?: FlowPosition;
 }
 
+/** One example route from a sensitive input to an outbound action, as action numbers. */
+export interface FlowPath {
+  actions: number[];
+  /** True when the route relies on an inferred default input rather than stated links. */
+  inferred: boolean;
+}
+
 export interface Finding {
   code: FindingCode;
   /** Stable rule key: the catalog action name for rule findings, otherwise the code. */
@@ -70,6 +78,8 @@ export interface Finding {
   /** 1-based action indexes. */
   actions: number[];
   message: string;
+  /** Example routes for a `possible-flow` finding: at most ten, one per source. */
+  paths?: FlowPath[];
 }
 
 export interface ReportSummary {
@@ -100,7 +110,7 @@ export interface ReportV1 {
     | 'magicInputs'
     | 'variableNames'
   >[];
-  findings: Omit<Finding, 'ruleId'>[];
+  findings: Omit<Finding, 'ruleId' | 'paths'>[];
   limitations: string[];
 }
 

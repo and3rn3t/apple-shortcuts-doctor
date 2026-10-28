@@ -4,6 +4,108 @@
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+// packages/core/src/flow.ts
+var MAX_PATHS_PER_FINDING = 10;
+var WORD_BITS = 32;
+var SENSITIVE_MAGIC_INPUTS = /* @__PURE__ */ new Set(["clipboard", "device-details"]);
+var isSource = (action) => action.category === "sensitive-input" || (action.magicInputs ?? []).some((input) => SENSITIVE_MAGIC_INPUTS.has(input));
+var isSink = (action) => action.category === "outbound";
+var Reach = class {
+  constructor(actionCount, sourceCount) {
+    this.sourceCount = sourceCount;
+    this.words = Math.max(1, Math.ceil(sourceCount / WORD_BITS));
+    this.bits = new Uint32Array(actionCount * this.words);
+  }
+  sourceCount;
+  words;
+  bits;
+  add(action, source) {
+    const offset = action * this.words + (source >>> 5);
+    this.bits[offset] = this.bits[offset] | 1 << (source & 31);
+  }
+  merge(into, from) {
+    for (let word = 0; word < this.words; word++) {
+      const target = into * this.words + word;
+      this.bits[target] = this.bits[target] | this.bits[from * this.words + word];
+    }
+  }
+  has(action, source) {
+    return (this.bits[action * this.words + (source >>> 5)] >>> (source & 31) & 1) === 1;
+  }
+  sources(action) {
+    const found = [];
+    for (let source = 0; source < this.sourceCount; source++) {
+      if (this.has(action, source)) found.push(source);
+    }
+    return found;
+  }
+};
+function statedPredecessors(action) {
+  return [...action.dependsOn, ...action.usesVariables];
+}
+function sourceToSinkFindings(actions) {
+  const sourceIndexes = actions.filter(isSource).map((action) => action.index);
+  if (!sourceIndexes.length) return [];
+  const slotOf = new Map(sourceIndexes.map((index, slot) => [index, slot]));
+  const stated = new Reach(actions.length, sourceIndexes.length);
+  const any = new Reach(actions.length, sourceIndexes.length);
+  actions.forEach((action, position) => {
+    const slot = slotOf.get(action.index);
+    if (slot !== void 0) {
+      stated.add(position, slot);
+      any.add(position, slot);
+    }
+    for (const earlier of statedPredecessors(action)) {
+      stated.merge(position, earlier - 1);
+      any.merge(position, earlier - 1);
+    }
+    if (action.inferredInputFrom !== void 0) any.merge(position, action.inferredInputFrom - 1);
+  });
+  const findings = [];
+  for (const sink of actions.filter(isSink)) {
+    const position = sink.index - 1;
+    const reaching = any.sources(position);
+    if (!reaching.length) continue;
+    const viaStated = new Set(stated.sources(position));
+    const paths = reaching.slice(0, MAX_PATHS_PER_FINDING).map((slot) => {
+      const strong = viaStated.has(slot);
+      return {
+        actions: walkBack(actions, strong ? stated : any, strong, position, slot, sourceIndexes),
+        inferred: !strong
+      };
+    });
+    const involved = [
+      .../* @__PURE__ */ new Set([...reaching.map((slot) => sourceIndexes[slot]), sink.index])
+    ];
+    findings.push({
+      code: "possible-flow",
+      ruleId: "sensitive-to-outbound",
+      severity: viaStated.size ? "warning" : "review",
+      actions: involved.sort((a, b) => a - b),
+      message: "Data from a sensitive input may reach this outbound action through references or variables. This is inferred from the export structure, not proven; check what is sent.",
+      paths
+    });
+  }
+  return findings;
+}
+function walkBack(actions, reach, statedOnly, sink, slot, sourceIndexes) {
+  const source = sourceIndexes[slot] - 1;
+  const path = [sink];
+  let current = sink;
+  while (current !== source) {
+    const action = actions[current];
+    const candidates = statedPredecessors(action);
+    if (!statedOnly && action.inferredInputFrom !== void 0) {
+      candidates.push(action.inferredInputFrom);
+    }
+    const next = candidates.map((index) => index - 1).filter((candidate) => reach.has(candidate, slot)).sort((a, b) => b - a)[0];
+    if (next === void 0) break;
+    path.push(next);
+    current = next;
+  }
+  return path.reverse().map((index) => index + 1);
+}
+
 // packages/core/src/rules.ts
 var ACTION_PREFIX = "is.workflow.actions.";
 var APPLE_INTENT_PREFIX = "com.apple.";
@@ -323,7 +425,7 @@ var LIMITATIONS = [
   "Parameters are omitted. Action identifiers are untrusted and may reveal app usage.",
   "Rules cover a limited set of action identifiers, not every Apple or third-party action.",
   "Dependencies show explicit OutputUUID references, not proven runtime data flows.",
-  "Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Where an action takes the output of the previous action by default, that is an inference and is marked as one. Nested workflows and permissions are not resolved.",
+  "Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Where an action takes the output of the previous action by default, that is an inference and is marked as one. Possible paths from sensitive inputs to outbound actions follow references, variables, and those inferences; they are not proof of what is sent. Nested workflows and permissions are not resolved.",
   "No findings does not mean safe; destinations, payloads, and runtime behavior need manual review."
 ];
 function isRecord(value) {
@@ -683,6 +785,7 @@ function inspectWorkflow(workflow, options = {}) {
       ...flow ? { flow } : {}
     };
   });
+  findings.push(...sourceToSinkFindings(actions));
   const grouped = groupFindings(findings);
   return {
     formatVersion: 2,
@@ -1175,6 +1278,20 @@ function findingLine(finding) {
   const targets = finding.actions.map((index) => `#${index}`).join(", ");
   return `${finding.severity.toUpperCase()} ${finding.code} (${targets}): ${finding.message}`;
 }
+var MAX_PATHS_SHOWN = 3;
+var MAX_PATH_STEPS_SHOWN = 12;
+function pathLines(finding) {
+  const paths = finding.paths ?? [];
+  const lines = paths.slice(0, MAX_PATHS_SHOWN).map((path) => {
+    const steps = path.actions.map((index) => `#${index}`);
+    const shown = steps.length > MAX_PATH_STEPS_SHOWN ? [...steps.slice(0, 6), "...", ...steps.slice(-5)] : steps;
+    return `possible path: ${shown.join(" -> ")}${path.inferred ? " (includes an inferred step)" : ""}`;
+  });
+  if (paths.length > MAX_PATHS_SHOWN) {
+    lines.push(`and ${paths.length - MAX_PATHS_SHOWN} more path(s) in the JSON report`);
+  }
+  return lines;
+}
 function section(title, lines, empty) {
   return [title, ...lines.length ? lines : [empty]];
 }
@@ -1190,7 +1307,10 @@ function renderText(report) {
     "",
     ...section(
       "Findings",
-      report.findings.map(findingLine),
+      report.findings.flatMap((finding) => [
+        findingLine(finding),
+        ...pathLines(finding).map((line) => `  ${line}`)
+      ]),
       "(none; this is not a safety verdict)"
     ),
     "",
@@ -1214,7 +1334,10 @@ function renderMarkdown(report) {
     "",
     ...section(
       "## Findings",
-      report.findings.map((finding) => `- ${findingLine(finding)}`),
+      report.findings.flatMap((finding) => [
+        `- ${findingLine(finding)}`,
+        ...pathLines(finding).map((line) => `  - ${line}`)
+      ]),
       "_None. This is not a safety verdict._"
     ),
     "",

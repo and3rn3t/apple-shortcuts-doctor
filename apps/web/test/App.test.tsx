@@ -115,7 +115,7 @@ describe('inspector input', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Try the built-in sample' }));
     expect(screen.getByTestId('summary').textContent).toContain('Inspected 3 actions');
-    expect(screen.getByTestId('summary').textContent).toContain('2 findings');
+    expect(screen.getByTestId('summary').textContent).toContain('3 findings');
   });
 
   it('shows the full report and moves focus to it once a file is inspected', async () => {

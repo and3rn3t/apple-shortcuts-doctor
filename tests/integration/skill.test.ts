@@ -178,6 +178,49 @@ describe('standalone skill bundle', () => {
     });
   });
 
+  describe('possible flows from sensitive inputs to outbound actions', () => {
+    const file = (): string => {
+      const path = join(temporaryDirectory(), 'flow.json');
+      writeFileSync(
+        path,
+        JSON.stringify(
+          workflow(
+            action('getclipboard', { UUID: 'private-uuid' }),
+            action('downloadurl', {
+              WFURL: 'https://private.invalid/secret',
+              WFInput: { Value: { OutputUUID: 'private-uuid' } },
+            })
+          )
+        )
+      );
+      return path;
+    };
+
+    it('reports the path in JSON, text and Markdown without any value', () => {
+      const json = JSON.parse(run(['--', file()]).stdout);
+      expect(json.findings).toContainEqual(
+        expect.objectContaining({
+          code: 'possible-flow',
+          severity: 'warning',
+          paths: [{ actions: [1, 2], inferred: false }],
+        })
+      );
+      const text = run(['--format', 'text', '--', file()]).stdout;
+      expect(text).toContain('possible path: #1 -> #2');
+      const markdown = run(['--format', 'md', '--', file()]).stdout;
+      expect(markdown).toContain('  - possible path: #1 -> #2');
+      for (const output of [JSON.stringify(json), text, markdown]) {
+        expect(output).not.toMatch(/private-uuid|private.invalid|secret/);
+      }
+    });
+
+    it('counts as a warning for --fail-on, and leaves paths out of v1', () => {
+      expect(run(['--quiet', '--fail-on', 'warning', '--', file()]).status).toBe(2);
+      const legacy = JSON.parse(run(['--format-version', '1', '--', file()]).stdout);
+      for (const finding of legacy.findings) expect(finding).not.toHaveProperty('paths');
+    });
+  });
+
   it('emits v2 by default and v1 on request', () => {
     const file = join(temporaryDirectory(), 'export.json');
     writeFileSync(file, JSON.stringify(workflow()));

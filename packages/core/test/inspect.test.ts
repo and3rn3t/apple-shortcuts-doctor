@@ -15,7 +15,11 @@ describe('workflow inspection', () => {
     const before = JSON.stringify(input);
     const report = inspectWorkflow(input);
     expect(report.actions[1]).toMatchObject({ index: 2, dependsOn: [1], category: 'outbound' });
-    expect(report.findings.map(f => f.code)).toEqual(['sensitive-input', 'outbound']);
+    expect(report.findings.map(f => f.code)).toEqual([
+      'sensitive-input',
+      'possible-flow',
+      'outbound',
+    ]);
     expect(JSON.stringify(report)).not.toMatch(
       /private payload|private.invalid|authorization value/
     );

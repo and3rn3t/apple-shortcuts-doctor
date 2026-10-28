@@ -100,5 +100,7 @@ Variable` or `Add to Variable`; branches and loops are not followed). `<? #3` me
 inference for a short list of actions that default to the previous output, never stated in the
 export. `{reads clipboard}` marks a
 variable token that reads the clipboard, device details, and so on without a separate action.
-Indentation and `{block N ...}` show if / menu / repeat blocks. Variable names appear only with
+`WARNING possible-flow (#4, #7, #35)` means data from sensitive inputs #4 and #7 may reach outbound
+action #35; the `possible path:` lines under it show example routes. It is derived from references,
+variables, and inferred default inputs, so it says "may", never "does". Indentation and `{block N ...}` show if / menu / repeat blocks. Variable names appear only with
 `--show-variable-names`.
