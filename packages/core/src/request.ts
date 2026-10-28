@@ -57,7 +57,8 @@ function methodKind(parameters: JsonRecord): RequestShape['method'] {
 
 function bodyKind(parameters: JsonRecord): RequestShape['body'] {
   const type = parameters.WFHTTPBodyType;
-  if (typeof type === 'string') return BODY_TYPES[type] ?? 'unknown';
+  if (typeof type === 'string')
+    return Object.hasOwn(BODY_TYPES, type) ? (BODY_TYPES[type] as RequestShape['body']) : 'unknown';
   if (type !== undefined) return 'unknown';
   return BODY_PARAMETERS.some(name => name in parameters) ? 'unknown' : 'none';
 }
@@ -82,6 +83,8 @@ function hostname(parameters: JsonRecord): string | undefined {
   const match = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)([/?#]?)/i.exec(known);
   if (!match) return undefined;
   const [, authority = '', delimiter = ''] = match;
+  // A backslash ends the authority in an HTTP URL, so what follows is path text, not userinfo.
+  if (authority.includes('\\')) return undefined;
   // Without a delimiter the host may continue into a variable.
   if (placeholder !== -1 && delimiter === '') return undefined;
   const host = (authority.split('@').pop() ?? '').replace(/:\d*$/, '').toLowerCase();

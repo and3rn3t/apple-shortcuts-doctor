@@ -147,7 +147,8 @@ function methodKind(parameters) {
 }
 function bodyKind(parameters) {
   const type = parameters.WFHTTPBodyType;
-  if (typeof type === "string") return BODY_TYPES[type] ?? "unknown";
+  if (typeof type === "string")
+    return Object.hasOwn(BODY_TYPES, type) ? BODY_TYPES[type] : "unknown";
   if (type !== void 0) return "unknown";
   return BODY_PARAMETERS.some((name) => name in parameters) ? "unknown" : "none";
 }
@@ -165,6 +166,7 @@ function hostname(parameters) {
   const match = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)([/?#]?)/i.exec(known);
   if (!match) return void 0;
   const [, authority = "", delimiter = ""] = match;
+  if (authority.includes("\\")) return void 0;
   if (placeholder !== -1 && delimiter === "") return void 0;
   const host = (authority.split("@").pop() ?? "").replace(/:\d*$/, "").toLowerCase();
   return HOST_PATTERN.test(host) ? host : void 0;

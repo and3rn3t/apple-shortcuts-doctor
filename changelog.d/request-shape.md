@@ -10,3 +10,8 @@
   when the text before the first variable already ends it. Credentials, ports, paths, and queries are
   never read, and a host that comes from a variable is left out. Off by default.
 - Checked on 138 real exports: no failures.
+
+### Fixed
+
+- `--show-hosts` no longer reads text after a backslash in the authority as a host (`https://a.invalid\@b.invalid/x` is the host `a.invalid`'s path to an HTTP client, so no host is reported), and an
+  inherited property name such as `constructor` in the body-type parameter is an unknown body type, not a schema-invalid report.
