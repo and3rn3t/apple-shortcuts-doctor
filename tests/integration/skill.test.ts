@@ -229,10 +229,10 @@ describe('standalone skill bundle', () => {
         JSON.stringify(
           workflow(
             action('downloadurl', {
-              WFURL: 'https://user:hunter2@private-host.invalid:8443/secret/path?token=abc',
+              WFURL: 'https://user:hunter2@private-host.invalid:8443/private-path/x?token=abc',
               WFHTTPMethod: 'POST',
               WFHTTPBodyType: 'JSON',
-              WFJSONValues: { secret: 'value' },
+              WFJSONValues: { hidden: 'value' },
             })
           )
         )
@@ -246,20 +246,76 @@ describe('standalone skill bundle', () => {
       for (const format of ['text', 'md']) {
         const output = run(['--format', format, '--', file()]).stdout;
         expect(output).toContain('{POST, json body, 0 headers, literal URL}');
-        expect(output).not.toMatch(/private-host|hunter2|8443|secret|token=abc/);
+        expect(output).not.toMatch(/private-host|hunter2|8443|private-path|token=abc/);
       }
     });
 
     it('adds only the hostname with --show-hosts, and leaves v1 untouched', () => {
       const shown = run(['--show-hosts', '--', file()]);
       expect(JSON.parse(shown.stdout).actions[0].request.host).toBe('private-host.invalid');
-      expect(shown.stdout).not.toMatch(/hunter2|8443|secret|token=abc/);
+      expect(shown.stdout).not.toMatch(/hunter2|8443|private-path|token=abc/);
       expect(run(['--show-hosts', '--format', 'text', '--', file()]).stdout).toContain(
         'literal URL, host private-host.invalid}'
       );
       const legacy = run(['--format-version', '1', '--show-hosts', '--', file()]);
       expect(JSON.parse(legacy.stdout).actions[0]).not.toHaveProperty('request');
       expect(legacy.stdout).not.toContain('private-host');
+    });
+  });
+
+  describe('hardcoded secrets', () => {
+    const secrets = [
+      ['gh', 'p_', 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789'].join(''),
+      ['AK', 'IA', 'ABCD1234EFGH5678'].join(''),
+      ['q7Zr', 'T9mK', 'x2Vb', 'N4cL', 'w8Yd', 'H3pS', 'j6Fg', 'A1uE'].join(''),
+    ];
+    const file = (): string => {
+      const path = join(temporaryDirectory(), 'secrets.json');
+      writeFileSync(
+        path,
+        JSON.stringify(
+          workflow(...secrets.map(value => action('gettext', { WFTextActionText: value })))
+        )
+      );
+      return path;
+    };
+
+    it.each(['json', 'text', 'md'])(
+      'reports the actions in %s and never any part of a secret',
+      format => {
+        const result = run(['--format', format, '--', file()]);
+        expect(result.status).toBe(0);
+        expect(result.stdout).toMatch(/hardcoded-secret/);
+        for (const value of secrets) {
+          expect(result.stdout).not.toContain(value);
+          expect(result.stdout).not.toContain(value.slice(0, 6));
+        }
+      }
+    );
+
+    it('splits by strength: token formats warn, a lone random string only asks for review', () => {
+      const findings = JSON.parse(run(['--', file()]).stdout).findings.filter(
+        (finding: { code: string }) => finding.code === 'hardcoded-secret'
+      );
+      expect(
+        findings.map((finding: { ruleId: string; severity: string; actions: number[] }) => [
+          finding.ruleId,
+          finding.severity,
+          finding.actions,
+        ])
+      ).toEqual([
+        ['secret-token-format', 'warning', [1, 2]],
+        ['secret-high-entropy', 'review', [3]],
+      ]);
+    });
+
+    it('fails --fail-on warning, and keeps secrets out of stderr for a bad file', () => {
+      expect(run(['--quiet', '--fail-on', 'warning', '--', file()]).status).toBe(2);
+      const bad = join(temporaryDirectory(), 'bad.json');
+      writeFileSync(bad, JSON.stringify({ WFWorkflowActions: [{ Secret: secrets[0] }] }));
+      const result = run(['--', bad]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).not.toContain(secrets[0]);
     });
   });
 

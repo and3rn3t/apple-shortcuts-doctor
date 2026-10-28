@@ -231,7 +231,8 @@
               "duplicate-output",
               "unresolved-reference",
               "unbalanced-control-flow",
-              "possible-flow"
+              "possible-flow",
+              "hardcoded-secret"
             ]
           },
           "ruleId": {

@@ -1,5 +1,6 @@
 import { sourceToSinkFindings } from './flow.ts';
 import { requestShape } from './request.ts';
+import { findSecretKinds, SECRET_RULES } from './secrets.ts';
 import {
   ACTION_PREFIX,
   BASIC_ACTIONS,
@@ -480,6 +481,10 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
     if (references.unresolvedReferenceCount) findings.push(unresolvedReferenceFinding(position));
     const variableUse = variables.visit(action, position);
     findings.push(...magicInputFindings(variableUse.magicInputs, position));
+    for (const kind of findSecretKinds(action.WFWorkflowActionParameters ?? {})) {
+      const { ruleId, severity, message } = SECRET_RULES[kind];
+      findings.push({ code: 'hardcoded-secret', ruleId, severity, actions: [position], message });
+    }
     const flow = controlFlow.flows[index];
     const parameters = action.WFWorkflowActionParameters ?? {};
     const request = requestShape(identifier, parameters, options.includeHosts === true);
