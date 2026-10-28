@@ -223,3 +223,167 @@ describe('workflow inspection', () => {
     expect(() => inspectWorkflow(workflow(...Array(2001).fill(action('text'))))).toThrow('2000');
   });
 });
+
+describe('control-flow structure', () => {
+  const block = (id: string, mode: number, group: string | undefined): ReturnType<typeof action> =>
+    action(
+      id,
+      group === undefined
+        ? { WFControlFlowMode: mode }
+        : { GroupingIdentifier: group, WFControlFlowMode: mode }
+    );
+  const structure = (...actions: unknown[]) => {
+    const report = inspectWorkflow(workflow(...actions));
+    return {
+      depths: report.actions.map(a => a.depth),
+      flows: report.actions.map(a => (a.flow ? `${a.flow.block}:${a.flow.role}` : '-')),
+      unbalanced: report.findings.find(f => f.code === 'unbalanced-control-flow')?.actions ?? [],
+      report,
+    };
+  };
+
+  it('has depth 0 and no flow on a workflow without blocks', () => {
+    const { depths, flows, unbalanced } = structure(action('text'), action('count'));
+    expect(depths).toEqual([0, 0]);
+    expect(flows).toEqual(['-', '-']);
+    expect(unbalanced).toEqual([]);
+  });
+
+  it('nests the actions of an if / else block one level deep', () => {
+    const { depths, flows, unbalanced } = structure(
+      block('conditional', 0, 'G1'),
+      action('text'),
+      block('conditional', 1, 'G1'),
+      action('text'),
+      block('conditional', 2, 'G1'),
+      action('text')
+    );
+    expect(depths).toEqual([0, 1, 0, 1, 0, 0]);
+    expect(flows).toEqual(['1:start', '-', '1:middle', '-', '1:end', '-']);
+    expect(unbalanced).toEqual([]);
+  });
+
+  it('numbers blocks in start order and nests repeat inside menu inside if', () => {
+    const { depths, flows, unbalanced } = structure(
+      block('conditional', 0, 'A'),
+      block('choosefrommenu', 0, 'B'),
+      block('choosefrommenu', 1, 'B'),
+      block('repeat.count', 0, 'C'),
+      action('text'),
+      block('repeat.count', 2, 'C'),
+      block('choosefrommenu', 2, 'B'),
+      block('conditional', 2, 'A')
+    );
+    expect(depths).toEqual([0, 1, 1, 2, 3, 2, 1, 0]);
+    expect(flows).toEqual([
+      '1:start',
+      '2:start',
+      '2:middle',
+      '3:start',
+      '-',
+      '3:end',
+      '2:end',
+      '1:end',
+    ]);
+    expect(unbalanced).toEqual([]);
+  });
+
+  it('reads the structure from the parameters, not from the action identifier', () => {
+    const { flows } = structure(
+      {
+        WFWorkflowActionIdentifier: 'com.vendor.App.Thing',
+        WFWorkflowActionParameters: { GroupingIdentifier: 'X', WFControlFlowMode: 0 },
+      },
+      block('anything', 2, 'X')
+    );
+    expect(flows).toEqual(['1:start', '1:end']);
+  });
+
+  it.each([
+    ['a start with no end', [block('conditional', 0, 'A'), action('text')], [1]],
+    ['an end with no start', [action('text'), block('conditional', 2, 'A')], [2]],
+    ['an else with no start', [block('conditional', 1, 'A')], [1]],
+    [
+      'an end that closes an outer block, leaving the inner one open',
+      [block('conditional', 0, 'A'), block('repeat.count', 0, 'B'), block('conditional', 2, 'A')],
+      [2],
+    ],
+    [
+      'an else that belongs to an outer block (and the inner end that then has no start)',
+      [
+        block('conditional', 0, 'A'),
+        block('repeat.count', 0, 'B'),
+        block('conditional', 1, 'A'),
+        block('repeat.count', 2, 'B'),
+        block('conditional', 2, 'A'),
+      ],
+      [2, 4],
+    ],
+    [
+      'a group id reused by a second start',
+      [
+        block('conditional', 0, 'A'),
+        block('conditional', 2, 'A'),
+        block('conditional', 0, 'A'),
+        block('conditional', 2, 'A'),
+      ],
+      [3],
+    ],
+    ['a mode that is not 0, 1, or 2', [block('conditional', 7, 'A')], [1]],
+    [
+      'a mode that is not a number',
+      [action('conditional', { GroupingIdentifier: 'A', WFControlFlowMode: '0' })],
+      [1],
+    ],
+    ['a block action with no group id', [block('conditional', 0, undefined)], [1]],
+    [
+      'a grouped action with no mode, between a start and its end',
+      [
+        block('conditional', 0, 'A'),
+        action('conditional', { GroupingIdentifier: 'A' }),
+        block('conditional', 2, 'A'),
+      ],
+      [2],
+    ],
+    ['an empty group id', [block('conditional', 0, '')], [1]],
+  ] as [string, unknown[], number[]][])('flags %s', (_label, actions, expected) => {
+    const { unbalanced, report } = structure(...actions);
+    expect(unbalanced).toEqual(expected);
+    expect(report.findings.find(f => f.code === 'unbalanced-control-flow')?.severity).toBe(
+      'warning'
+    );
+  });
+
+  it('keeps depths non-negative and finite even when everything is unbalanced', () => {
+    const { depths } = structure(
+      block('conditional', 2, 'A'),
+      block('conditional', 2, 'B'),
+      block('conditional', 1, 'C')
+    );
+    expect(depths).toEqual([0, 0, 0]);
+  });
+
+  it('groups several unbalanced actions into one finding', () => {
+    const { report } = structure(block('conditional', 0, 'A'), block('conditional', 0, 'B'));
+    expect(report.findings.filter(f => f.code === 'unbalanced-control-flow')).toHaveLength(1);
+    expect(report.findings[0]?.actions).toEqual([1, 2]);
+  });
+
+  it('never copies a group id into the report', () => {
+    const { report } = structure(
+      block('conditional', 0, 'SECRET-GROUP-ID'),
+      block('conditional', 2, 'OTHER-SECRET-GROUP')
+    );
+    const text = JSON.stringify(report);
+    expect(text).not.toContain('SECRET-GROUP-ID');
+    expect(text).not.toContain('OTHER-SECRET-GROUP');
+  });
+
+  it('handles 500 nested blocks', () => {
+    const open = Array.from({ length: 500 }, (_, i) => block('conditional', 0, `g${i}`));
+    const close = Array.from({ length: 500 }, (_, i) => block('conditional', 2, `g${499 - i}`));
+    const { depths, unbalanced } = structure(...open, action('text'), ...close);
+    expect(Math.max(...depths)).toBe(500);
+    expect(unbalanced).toEqual([]);
+  });
+});

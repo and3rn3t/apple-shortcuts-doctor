@@ -292,7 +292,7 @@ var LIMITATIONS = [
   "Parameters are omitted. Action identifiers are untrusted and may reveal app usage.",
   "Rules cover a limited set of action identifiers, not every Apple or third-party action.",
   "Dependencies show explicit OutputUUID references, not proven runtime data flows.",
-  "Implicit input, variables, branches, loops, nested workflows, and permissions are not resolved.",
+  "Blocks (if, menu, repeat) are shown as structure and never evaluated. Implicit input, variables, nested workflows, and permissions are not resolved.",
   "No findings does not mean safe; destinations, payloads, and runtime behavior need manual review."
 ];
 function isRecord(value) {
@@ -386,6 +386,62 @@ function classificationFinding(identifier, position) {
     message: rule2.message
   };
 }
+function analyzeControlFlow(rawActions) {
+  const open = [];
+  const used = /* @__PURE__ */ new Set();
+  const unbalanced = /* @__PURE__ */ new Set();
+  const flows = [];
+  const depths = [];
+  let blocks = 0;
+  rawActions.forEach((action, index) => {
+    const position = index + 1;
+    const parameters = action.WFWorkflowActionParameters;
+    const mode = parameters?.WFControlFlowMode;
+    const id = parameters?.GroupingIdentifier;
+    flows.push(void 0);
+    depths.push(open.length);
+    if (mode === void 0 && id === void 0) return;
+    if (!(mode === 0 || mode === 1 || mode === 2) || typeof id !== "string" || id === "") {
+      unbalanced.add(position);
+      return;
+    }
+    if (mode === 0) {
+      if (used.has(id)) unbalanced.add(position);
+      used.add(id);
+      blocks++;
+      flows[index] = { block: blocks, role: "start" };
+      open.push({ id, block: blocks, position });
+      return;
+    }
+    let target = open.length - 1;
+    while (target >= 0 && open[target]?.id !== id) target--;
+    const found = open[target];
+    if (!found) {
+      unbalanced.add(position);
+      return;
+    }
+    for (const skipped of open.splice(target + 1)) unbalanced.add(skipped.position);
+    if (mode === 1) {
+      depths[index] = open.length - 1;
+      flows[index] = { block: found.block, role: "middle" };
+      return;
+    }
+    open.pop();
+    depths[index] = open.length;
+    flows[index] = { block: found.block, role: "end" };
+  });
+  for (const block of open) unbalanced.add(block.position);
+  return { flows, depths, unbalanced: [...unbalanced].sort((a, b) => a - b) };
+}
+function unbalancedControlFlowFinding(position) {
+  return {
+    code: "unbalanced-control-flow",
+    ruleId: "unbalanced-control-flow",
+    severity: "warning",
+    actions: [position],
+    message: "A control-flow block is unbalanced: a start, else or menu item, or end is missing or out of order. Verify it in Shortcuts."
+  };
+}
 function unresolvedReferenceFinding(position) {
   return {
     code: "unresolved-reference",
@@ -433,7 +489,14 @@ function toReportV1(report) {
   return {
     formatVersion: 1,
     actionCount: report.actionCount,
-    actions: report.actions,
+    actions: report.actions.map((action) => ({
+      index: action.index,
+      identifier: action.identifier,
+      recognized: action.recognized,
+      category: action.category,
+      dependsOn: action.dependsOn,
+      unresolvedReferenceCount: action.unresolvedReferenceCount
+    })),
     findings: report.findings.map((finding) => ({
       code: finding.code,
       severity: finding.severity,
@@ -447,6 +510,8 @@ function inspectWorkflow(workflow) {
   const rawActions = validateWorkflow(workflow);
   const uuidIndexes = indexOutputUuids(rawActions);
   const findings = duplicateOutputFindings(uuidIndexes);
+  const controlFlow = analyzeControlFlow(rawActions);
+  findings.push(...controlFlow.unbalanced.map(unbalancedControlFlowFinding));
   const actions = rawActions.map((action, index) => {
     const position = index + 1;
     const identifier = action.WFWorkflowActionIdentifier;
@@ -460,12 +525,15 @@ function inspectWorkflow(workflow) {
       uuidIndexes
     );
     if (references.unresolvedReferenceCount) findings.push(unresolvedReferenceFinding(position));
+    const flow = controlFlow.flows[index];
     return {
       index: position,
       identifier,
       recognized,
       category: rule2?.category ?? (recognized ? "basic" : "unknown"),
-      ...references
+      ...references,
+      depth: controlFlow.depths[index] ?? 0,
+      ...flow ? { flow } : {}
     };
   });
   const grouped = groupFindings(findings);
@@ -935,10 +1003,15 @@ function displayIdentifier(identifier) {
 function markdownCode(text) {
   return `\`${text.replaceAll("`", "'")}\``;
 }
-function actionLine(action, label) {
+var MAX_INDENT_DEPTH = 10;
+var ROLE_LABELS = { start: "start", middle: "else/item", end: "end" };
+function actionLine(action, label, style) {
   const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(", #")}` : "";
   const unresolved = action.unresolvedReferenceCount ? ` (${action.unresolvedReferenceCount} unresolved reference(s))` : "";
-  return `${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${depends}${unresolved}`;
+  const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : "";
+  const level = Math.min(action.depth, MAX_INDENT_DEPTH);
+  const lead = style === "markdown" ? `${"  ".repeat(level)}- ${action.index}\\.` : `${"  ".repeat(level)}${action.index}.`;
+  return `${lead} ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${depends}${unresolved}`;
 }
 function findingLine(finding) {
   const targets = finding.actions.map((index) => `#${index}`).join(", ");
@@ -953,7 +1026,7 @@ function renderText(report) {
     "",
     ...section(
       "Actions",
-      report.actions.map((action) => actionLine(action, (text) => text)),
+      report.actions.map((action) => actionLine(action, (text) => text, "text")),
       "(none)"
     ),
     "",
@@ -977,7 +1050,7 @@ function renderMarkdown(report) {
     "",
     ...section(
       "## Actions",
-      report.actions.map((action) => actionLine(action, markdownCode)),
+      report.actions.map((action) => actionLine(action, markdownCode, "markdown")),
       "_None._"
     ),
     "",

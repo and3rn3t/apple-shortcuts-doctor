@@ -4,7 +4,11 @@ export type RuleCategory =
 export type ActionCategory = RuleCategory | 'basic' | 'unknown';
 
 export type FindingCode =
-  RuleCategory | 'unknown-action' | 'duplicate-output' | 'unresolved-reference';
+  | RuleCategory
+  | 'unknown-action'
+  | 'duplicate-output'
+  | 'unresolved-reference'
+  | 'unbalanced-control-flow';
 
 /** Review priority, not a vulnerability verdict. */
 export type Severity = 'review' | 'warning';
@@ -12,6 +16,14 @@ export type Severity = 'review' | 'warning';
 export interface Rule {
   category: RuleCategory;
   message: string;
+}
+
+export type FlowRole = 'start' | 'middle' | 'end';
+
+/** Where an action sits in an if / menu / repeat block. Block numbers follow start order. */
+export interface FlowPosition {
+  block: number;
+  role: FlowRole;
 }
 
 export interface InspectedAction {
@@ -23,6 +35,10 @@ export interface InspectedAction {
   /** 1-based indexes of earlier actions referenced through an explicit OutputUUID. */
   dependsOn: number[];
   unresolvedReferenceCount: number;
+  /** How many control-flow blocks enclose the action; 0 at the top level. */
+  depth: number;
+  /** Present on the actions that open, continue (else, menu item), or close a block. */
+  flow?: FlowPosition;
 }
 
 export interface Finding {
@@ -53,7 +69,7 @@ export interface Report {
 export interface ReportV1 {
   formatVersion: 1;
   actionCount: number;
-  actions: InspectedAction[];
+  actions: Omit<InspectedAction, 'depth' | 'flow'>[];
   findings: Omit<Finding, 'ruleId'>[];
   limitations: string[];
 }

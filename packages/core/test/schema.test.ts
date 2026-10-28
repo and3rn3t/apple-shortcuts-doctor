@@ -27,6 +27,32 @@ describe('report v2', () => {
     expect(validate(inspectWorkflow(workflow()))).toBe(true);
   });
 
+  it('validates a report with nested blocks and an unbalanced one', () => {
+    const block = (mode: number, group: string): ReturnType<typeof action> =>
+      action('conditional', { GroupingIdentifier: group, WFControlFlowMode: mode });
+    const nested = inspectWorkflow(
+      workflow(block(0, 'A'), action('text'), block(2, 'A'), block(0, 'B'))
+    );
+    expect(nested.actions[0]?.flow).toEqual({ block: 1, role: 'start' });
+    expect(validate(nested), JSON.stringify(validate.errors)).toBe(true);
+    expect(nested.findings.map(finding => finding.code)).toContain('unbalanced-control-flow');
+  });
+
+  it('rejects a block position with an unknown role', () => {
+    const broken = structuredClone(sample);
+    (broken.actions[0] as unknown as Record<string, unknown>).flow = { block: 1, role: 'sideways' };
+    expect(validate(broken)).toBe(false);
+  });
+
+  it('still accepts the actions of reports written before depth and flow existed', () => {
+    const old = structuredClone(sample);
+    for (const entry of old.actions as unknown as Record<string, unknown>[]) {
+      delete entry.depth;
+      delete entry.flow;
+    }
+    expect(validate(old), JSON.stringify(validate.errors)).toBe(true);
+  });
+
   it('rejects the legacy shape', () => {
     expect(validate(toReportV1(sample))).toBe(false);
   });
@@ -55,5 +81,7 @@ describe('report v2', () => {
     expect(legacy.formatVersion).toBe(1);
     expect(legacy).not.toHaveProperty('summary');
     expect(legacy.findings[0]).not.toHaveProperty('ruleId');
+    expect(legacy.actions[0]).not.toHaveProperty('depth');
+    expect(legacy.actions[0]).not.toHaveProperty('flow');
   });
 });
