@@ -95,6 +95,89 @@ describe('standalone skill bundle', () => {
     expect(result.stdout).not.toContain('private body');
   });
 
+  describe('variables, magic tokens, and names', () => {
+    const variable = (name: string): unknown => ({
+      Value: { Type: 'Variable', VariableName: name },
+    });
+    const withVariables = (): string => {
+      const file = join(temporaryDirectory(), 'variables.json');
+      writeFileSync(
+        file,
+        JSON.stringify(
+          workflow(
+            action('setvariable', { WFVariableName: 'Private Variable Name' }),
+            action('gettext', {
+              A: variable('Private Variable Name'),
+              B: { Value: { Type: 'Clipboard' } },
+              C: variable('private-unset-name'),
+            }),
+            action('setvariable', { WFVariableName: `evil\u0007${'x'.repeat(100)}` })
+          )
+        )
+      );
+      return file;
+    };
+
+    it.each([
+      [
+        'text',
+        [
+          '<~ #1',
+          '{reads clipboard}',
+          '1 unset variable(s)',
+          'Reads the clipboard through a variable token',
+        ],
+      ],
+      ['md', ['<~ #1', '{reads clipboard}', 'Reads the clipboard through a variable token']],
+    ])('links variables and reports the clipboard token in %s', (format, expected) => {
+      const result = run(['--format', format, '--', withVariables()]);
+      expect(result.status).toBe(0);
+      for (const text of expected) expect(result.stdout).toContain(text);
+    });
+
+    it('links variables and reports the clipboard token in JSON', () => {
+      const report = JSON.parse(run(['--', withVariables()]).stdout);
+      expect(report.actions[1]).toMatchObject({
+        usesVariables: [1],
+        unresolvedVariableCount: 1,
+        magicInputs: ['clipboard'],
+      });
+      expect(report.findings).toContainEqual(
+        expect.objectContaining({ code: 'sensitive-input', ruleId: 'clipboard-token' })
+      );
+    });
+
+    it.each(['json', 'text', 'md'])('omits variable names by default in %s', format => {
+      const result = run(['--format', format, '--', withVariables()]);
+      expect(result.stdout).not.toMatch(/Private Variable Name|private-unset-name|evil/);
+    });
+
+    it('includes sanitized, shortened names only with --show-variable-names', () => {
+      const result = run(['--show-variable-names', '--', withVariables()]);
+      const names: string[] = JSON.parse(result.stdout).actions.flatMap(
+        (entry: { variableNames?: string[] }) => entry.variableNames ?? []
+      );
+      expect(names).toContain('Private Variable Name');
+      for (const name of names) {
+        expect(name).toMatch(/^[\x20-\x7e]+$/);
+        expect(name.length).toBeLessThanOrEqual(63);
+      }
+      expect(
+        run(['--show-variable-names', '--format', 'text', '--', withVariables()]).stdout
+      ).toContain('{variables Private Variable Name}');
+    });
+
+    it('leaves all of it out of the legacy v1 report, even with names requested', () => {
+      const result = run(['--format-version', '1', '--show-variable-names', '--', withVariables()]);
+      const legacy = JSON.parse(result.stdout);
+      expect(legacy.formatVersion).toBe(1);
+      expect(legacy.actions[1]).not.toHaveProperty('usesVariables');
+      expect(legacy.actions[1]).not.toHaveProperty('magicInputs');
+      expect(legacy.actions[1]).not.toHaveProperty('variableNames');
+      expect(result.stdout).not.toContain('Private Variable Name');
+    });
+  });
+
   it('emits v2 by default and v1 on request', () => {
     const file = join(temporaryDirectory(), 'export.json');
     writeFileSync(file, JSON.stringify(workflow()));

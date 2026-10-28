@@ -97,6 +97,43 @@ describe('main', () => {
     expect(report).not.toHaveProperty('summary');
   });
 
+  describe('--show-variable-names', () => {
+    const exportWithVariable = (): string =>
+      writeExport(
+        'vars.json',
+        JSON.stringify({
+          WFWorkflowActions: [
+            {
+              WFWorkflowActionIdentifier: 'is.workflow.actions.setvariable',
+              WFWorkflowActionParameters: { WFVariableName: 'My Secret Name' },
+            },
+          ],
+        })
+      );
+
+    it('leaves variable names out by default', () => {
+      expect(main(['--format', 'json', '--', exportWithVariable()])).toBe(0);
+      expect(output(stdout)).not.toContain('My Secret Name');
+    });
+
+    it('includes them only with the flag, in JSON and text', () => {
+      expect(main(['--format', 'json', '--show-variable-names', '--', exportWithVariable()])).toBe(
+        0
+      );
+      expect(JSON.parse(output(stdout)).actions[0].variableNames).toEqual(['My Secret Name']);
+      stdout.mockClear();
+      expect(main(['--format', 'text', '--show-variable-names', '--', exportWithVariable()])).toBe(
+        0
+      );
+      expect(output(stdout)).toContain('{variables My Secret Name}');
+    });
+
+    it('is listed in the usage text', () => {
+      main(['--help']);
+      expect(output(stdout)).toContain('--show-variable-names');
+    });
+  });
+
   it.each([['--format-version', '3'], ['--format-version']])('rejects %j', (...args) => {
     expect(main([...args, 'x'])).toBe(1);
     expect(output(stdout)).toContain('Usage:');

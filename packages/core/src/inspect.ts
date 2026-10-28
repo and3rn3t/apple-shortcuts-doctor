@@ -4,6 +4,8 @@ import type {
   Finding,
   FlowPosition,
   InspectedAction,
+  InspectOptions,
+  MagicInput,
   Report,
   ReportSummary,
   ReportV1,
@@ -19,7 +21,7 @@ export const LIMITATIONS: readonly string[] = [
   'Parameters are omitted. Action identifiers are untrusted and may reveal app usage.',
   'Rules cover a limited set of action identifiers, not every Apple or third-party action.',
   'Dependencies show explicit OutputUUID references, not proven runtime data flows.',
-  'Blocks (if, menu, repeat) are shown as structure and never evaluated. Implicit input, variables, nested workflows, and permissions are not resolved.',
+  'Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Implicit input, nested workflows, and permissions are not resolved.',
   'No findings does not mean safe; destinations, payloads, and runtime behavior need manual review.',
 ];
 
@@ -92,6 +94,22 @@ function duplicateOutputFindings(uuidIndexes: Map<string, number[]>): Finding[] 
     }));
 }
 
+/** Calls `visit` for every plain object nested anywhere in the parameters. */
+function visitRecords(parameters: JsonRecord, visit: (record: JsonRecord) => void): void {
+  const stack: unknown[] = [parameters];
+  while (stack.length) {
+    const value = stack.pop();
+    if (Array.isArray(value)) {
+      // One at a time: spreading a large array would exceed the engine's argument limit.
+      for (const item of value as unknown[]) stack.push(item);
+      continue;
+    }
+    if (!isRecord(value)) continue;
+    visit(value);
+    for (const child of Object.values(value)) stack.push(child);
+  }
+}
+
 interface References {
   dependsOn: number[];
   unresolvedReferenceCount: number;
@@ -105,24 +123,138 @@ function collectReferences(
 ): References {
   const dependsOn = new Set<number>();
   let unresolvedReferenceCount = 0;
-  const stack: unknown[] = [parameters];
-  while (stack.length) {
-    const value = stack.pop();
-    if (Array.isArray(value)) {
-      // One at a time: spreading a large array would exceed the engine's argument limit.
-      for (const item of value as unknown[]) stack.push(item);
-      continue;
-    }
-    if (!isRecord(value)) continue;
-    if (typeof value.OutputUUID === 'string') {
-      const targets = uuidIndexes.get(value.OutputUUID);
-      const target = targets?.length === 1 ? targets[0] : undefined;
-      if (target === undefined || target >= position) unresolvedReferenceCount++;
-      else dependsOn.add(target);
-    }
-    for (const child of Object.values(value)) stack.push(child);
-  }
+  visitRecords(parameters, record => {
+    if (typeof record.OutputUUID !== 'string') return;
+    const targets = uuidIndexes.get(record.OutputUUID);
+    const target = targets?.length === 1 ? targets[0] : undefined;
+    if (target === undefined || target >= position) unresolvedReferenceCount++;
+    else dependsOn.add(target);
+  });
   return { dependsOn: [...dependsOn].sort((a, b) => a - b), unresolvedReferenceCount };
+}
+
+const MAGIC_INPUTS: Record<string, MagicInput> = {
+  ExtensionInput: 'shortcut-input',
+  Clipboard: 'clipboard',
+  Ask: 'ask',
+  CurrentDate: 'current-date',
+  DeviceDetails: 'device-details',
+};
+const MAGIC_ORDER: readonly MagicInput[] = [
+  'shortcut-input',
+  'clipboard',
+  'ask',
+  'current-date',
+  'device-details',
+];
+
+/** Shortcuts itself provides these inside repeat blocks, so no action sets them. */
+const PROVIDED_VARIABLE = /^Repeat (?:Item|Index)(?: \d+)?$/;
+const SET_VARIABLE = `${ACTION_PREFIX}setvariable`;
+const APPEND_VARIABLE = `${ACTION_PREFIX}appendvariable`;
+const MAX_VARIABLE_NAME_DISPLAY = 60;
+const MAX_VARIABLE_NAMES = 50;
+
+interface TokenReads {
+  variables: Set<string>;
+  magic: Set<MagicInput>;
+}
+
+/** Variable tokens look like { Type: 'Variable', VariableName } and magic ones like { Type: 'Clipboard' }. */
+function collectTokens(parameters: JsonRecord): TokenReads {
+  const variables = new Set<string>();
+  const magic = new Set<MagicInput>();
+  visitRecords(parameters, record => {
+    const type = record.Type;
+    if (type === 'Variable' && typeof record.VariableName === 'string') {
+      variables.add(record.VariableName);
+    } else if (typeof type === 'string' && Object.hasOwn(MAGIC_INPUTS, type)) {
+      magic.add(MAGIC_INPUTS[type] as MagicInput);
+    }
+  });
+  return { variables, magic };
+}
+
+/** Variable names are untrusted text: printable ASCII only, and short. */
+function displayVariableName(name: string): string {
+  const printable = name.replace(/[^\x20-\x7e]/g, '?');
+  return printable.length > MAX_VARIABLE_NAME_DISPLAY
+    ? `${printable.slice(0, MAX_VARIABLE_NAME_DISPLAY)}...`
+    : printable;
+}
+
+interface VariableUse {
+  usesVariables: number[];
+  unresolvedVariableCount: number;
+  magicInputs?: MagicInput[];
+  variableNames?: string[];
+}
+
+/**
+ * Tracks which action last set each variable, and the appends after it. A read depends on all of
+ * them. Reads are resolved before the action's own definition, so `x = x + ...` reads the old x.
+ */
+class VariableTracker {
+  private readonly chains = new Map<string, number[]>();
+
+  constructor(private readonly includeNames: boolean) {}
+
+  visit(action: RawAction, position: number): VariableUse {
+    const parameters = action.WFWorkflowActionParameters ?? {};
+    const { variables, magic } = collectTokens(parameters);
+    const sources = new Set<number>();
+    let unresolved = 0;
+    for (const name of variables) {
+      const chain = this.chains.get(name);
+      if (chain) for (const source of chain) sources.add(source);
+      else if (!PROVIDED_VARIABLE.test(name)) unresolved++;
+    }
+    const identifier = action.WFWorkflowActionIdentifier;
+    const defined = parameters.WFVariableName;
+    const names = new Set(variables);
+    if (typeof defined === 'string') {
+      if (identifier === SET_VARIABLE) this.chains.set(defined, [position]);
+      else if (identifier === APPEND_VARIABLE)
+        this.chains.set(defined, [...(this.chains.get(defined) ?? []), position]);
+      if (identifier === SET_VARIABLE || identifier === APPEND_VARIABLE) names.add(defined);
+    }
+    const use: VariableUse = {
+      usesVariables: [...sources].sort((a, b) => a - b),
+      unresolvedVariableCount: unresolved,
+    };
+    if (magic.size) use.magicInputs = MAGIC_ORDER.filter(input => magic.has(input));
+    if (this.includeNames) {
+      use.variableNames = [...names].sort().slice(0, MAX_VARIABLE_NAMES).map(displayVariableName);
+    }
+    return use;
+  }
+}
+
+const MAGIC_FINDINGS: Partial<Record<MagicInput, { ruleId: string; message: string }>> = {
+  clipboard: {
+    ruleId: 'clipboard-token',
+    message: 'Reads the clipboard through a variable token, without a Get Clipboard action.',
+  },
+  'device-details': {
+    ruleId: 'device-details-token',
+    message: 'Reads device details through a variable token.',
+  },
+};
+
+function magicInputFindings(inputs: MagicInput[] | undefined, position: number): Finding[] {
+  return (inputs ?? []).flatMap((input): Finding[] => {
+    const finding = MAGIC_FINDINGS[input];
+    if (!finding) return [];
+    return [
+      {
+        code: 'sensitive-input',
+        ruleId: finding.ruleId,
+        severity: 'review',
+        actions: [position],
+        message: finding.message,
+      },
+    ];
+  });
 }
 
 /** Unknown Apple actions are catalog gaps; third-party intents depend on the app that provides them. */
@@ -313,11 +445,12 @@ export function toReportV1(report: Report): ReportV1 {
  * Statically inspects a decoded workflow. Never executes anything and never copies
  * parameter values, URLs, or UUIDs into the report.
  */
-export function inspectWorkflow(workflow: unknown): Report {
+export function inspectWorkflow(workflow: unknown, options: InspectOptions = {}): Report {
   const rawActions = validateWorkflow(workflow);
   const uuidIndexes = indexOutputUuids(rawActions);
   const findings = duplicateOutputFindings(uuidIndexes);
   const controlFlow = analyzeControlFlow(rawActions);
+  const variables = new VariableTracker(options.includeVariableNames === true);
   findings.push(...controlFlow.unbalanced.map(unbalancedControlFlowFinding));
   const actions = rawActions.map((action, index): InspectedAction => {
     const position = index + 1;
@@ -332,6 +465,8 @@ export function inspectWorkflow(workflow: unknown): Report {
       uuidIndexes
     );
     if (references.unresolvedReferenceCount) findings.push(unresolvedReferenceFinding(position));
+    const variableUse = variables.visit(action, position);
+    findings.push(...magicInputFindings(variableUse.magicInputs, position));
     const flow = controlFlow.flows[index];
     return {
       index: position,
@@ -339,6 +474,7 @@ export function inspectWorkflow(workflow: unknown): Report {
       recognized,
       category: rule?.category ?? (recognized ? 'basic' : 'unknown'),
       ...references,
+      ...variableUse,
       depth: controlFlow.depths[index] ?? 0,
       ...(flow ? { flow } : {}),
     };

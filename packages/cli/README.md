@@ -48,14 +48,15 @@ actions. Which findings reach a `--fail-on` threshold is unchanged.
 
 ## Options
 
-| Option                      | Description                                                        |
-| --------------------------- | ------------------------------------------------------------------ |
-| `--format text\|json\|md`   | Output format. Default: `text` on a terminal, `json` when piped    |
-| `--format-version 1\|2`     | JSON report version (default `2`; schema in the repository)        |
-| `--fail-on review\|warning` | Exit `2` if any finding is at or above this severity               |
-| `--quiet`                   | Do not print the report (errors and `--fail-on` notes still print) |
-| `-v`, `--version`           | Print the version                                                  |
-| `-h`, `--help`              | Show usage                                                         |
+| Option                      | Description                                                                    |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| `--format text\|json\|md`   | Output format. Default: `text` on a terminal, `json` when piped                |
+| `--format-version 1\|2`     | JSON report version (default `2`; schema in the repository)                    |
+| `--fail-on review\|warning` | Exit `2` if any finding is at or above this severity                           |
+| `--show-variable-names`     | Include variable names in the report (off by default; they are untrusted text) |
+| `--quiet`                   | Do not print the report (errors and `--fail-on` notes still print)             |
+| `-v`, `--version`           | Print the version                                                              |
+| `-h`, `--help`              | Show usage                                                                     |
 
 An unrecognized option exits `1` with `Unknown option: <name>`.
 
@@ -90,3 +91,12 @@ jobs:
 - [Project README](https://github.com/and3rn3t/apple-shortcuts-doctor#readme)
 - [Report a bug or request a feature](https://github.com/and3rn3t/apple-shortcuts-doctor/issues)
 - [Security policy](https://github.com/and3rn3t/apple-shortcuts-doctor/security/policy)
+
+## Reading the action list
+
+`<- #3` means the action uses the output of action 3 through an explicit reference. `<~ #3, #6`
+means it reads a variable that action 3 or 6 set (matched by name to the closest earlier `Set
+Variable` or `Add to Variable`; branches and loops are not followed). `{reads clipboard}` marks a
+variable token that reads the clipboard, device details, and so on without a separate action.
+Indentation and `{block N ...}` show if / menu / repeat blocks. Variable names appear only with
+`--show-variable-names`.

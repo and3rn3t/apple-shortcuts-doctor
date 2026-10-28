@@ -137,6 +137,32 @@
             "type": "integer",
             "minimum": 0
           },
+          "usesVariables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/actionIndex"
+            }
+          },
+          "unresolvedVariableCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "magicInputs": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": ["shortcut-input", "clipboard", "ask", "current-date", "device-details"]
+            }
+          },
+          "variableNames": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "maxLength": 63
+            }
+          },
           "depth": {
             "type": "integer",
             "minimum": 0,

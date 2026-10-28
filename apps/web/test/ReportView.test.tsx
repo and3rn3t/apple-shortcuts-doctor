@@ -266,3 +266,58 @@ describe('control-flow blocks', () => {
     expect(document.body.innerHTML).not.toContain('SECRET-GROUP');
   });
 });
+
+describe('variables and magic inputs', () => {
+  const variable = (name: string): unknown => ({ Value: { Type: 'Variable', VariableName: name } });
+
+  it('links a read to the action that set the variable, and never shows the variable name', () => {
+    show(
+      reportOf(
+        action('setvariable', { WFVariableName: 'Private Name' }),
+        action('gettext', { A: variable('Private Name'), B: variable('nobody') })
+      )
+    );
+    const second = document.querySelector('#action-2') as HTMLElement;
+    expect(second.textContent).toContain('uses variables set by #1');
+    expect(second.textContent).toContain('1 unset variable');
+    expect(document.body.innerHTML).not.toContain('Private Name');
+    expect(document.body.innerHTML).not.toContain('nobody');
+  });
+
+  it('says which magic input an action reads, and reports the clipboard token', () => {
+    show(reportOf(action('gettext', { A: { Value: { Type: 'Clipboard' } } })));
+    expect((document.querySelector('#action-1') as HTMLElement).textContent).toContain(
+      'reads clipboard'
+    );
+    expect(headingTexts(5)).toContain('Sensitive inputs');
+  });
+});
+
+describe('long link lists', () => {
+  const variable = (name: string): unknown => ({ Value: { Type: 'Variable', VariableName: name } });
+  const appends = Array.from({ length: 400 }, () =>
+    action('appendvariable', { WFVariableName: 'x' })
+  );
+  const report = reportOf(...appends, action('gettext', { A: variable('x') }));
+
+  it('renders only the first page of links, and says how many are hidden', () => {
+    show(report);
+    const last = document.querySelector('#action-401') as HTMLElement;
+    expect(last.querySelectorAll('a')).toHaveLength(50);
+    expect(within(last).getByRole('button').textContent).toBe('Show 200 more (350 hidden)');
+  });
+
+  it('shows more on request until none are hidden', () => {
+    show(report);
+    const last = document.querySelector('#action-401') as HTMLElement;
+    fireEvent.click(within(last).getByRole('button'));
+    expect(last.querySelectorAll('a')).toHaveLength(250);
+    fireEvent.click(within(last).getByRole('button'));
+    expect(last.querySelectorAll('a')).toHaveLength(400);
+    expect(within(last).queryByRole('button')).toBeNull();
+  });
+
+  it('keeps every link in the data, only paging the display', () => {
+    expect(report.actions[400]?.usesVariables).toHaveLength(400);
+  });
+});
