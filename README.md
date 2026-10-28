@@ -73,13 +73,13 @@ Read-only inspection with the signature checked is being researched in
 
 ## Surfaces
 
-| Surface                | Status         | Location                                                                                                                              |
-| ---------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Agent skill (OpenClaw) | ✅ available   | [`skills/shortcuts-doctor/`](skills/shortcuts-doctor/)                                                                                |
-| CLI                    | ✅ available   | [`shortcuts-doctor` on npm](https://www.npmjs.com/package/shortcuts-doctor)                                                           |
-| Web app                | 🚧 in progress | `apps/web/`: client-side only, file never leaves the browser ([v0.4](https://github.com/and3rn3t/apple-shortcuts-doctor/milestone/2)) |
+| Surface                | Status       | Location                                                                                                                |
+| ---------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Agent skill (OpenClaw) | ✅ available | [`skills/shortcuts-doctor/`](skills/shortcuts-doctor/)                                                                  |
+| CLI                    | ✅ available | [`shortcuts-doctor` on npm](https://www.npmjs.com/package/shortcuts-doctor)                                             |
+| Web app                | ✅ available | [shortcuts.andernet.dev](https://shortcuts.andernet.dev): client-side only, file never leaves the browser (`apps/web/`) |
 
-The web app is built and tested but not yet deployed; it goes live with 0.4.0. It reads the file in
+The web app at [shortcuts.andernet.dev](https://shortcuts.andernet.dev) reads the file in
 your browser with the same engine as the CLI and has no way to send it anywhere: its security
 policy forbids every network connection after the page loads. Details and how that is enforced are
 in [`apps/web/README.md`](apps/web/README.md).
