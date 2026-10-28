@@ -266,3 +266,29 @@ describe('control-flow blocks', () => {
     expect(document.body.innerHTML).not.toContain('SECRET-GROUP');
   });
 });
+
+describe('variables and magic inputs', () => {
+  const variable = (name: string): unknown => ({ Value: { Type: 'Variable', VariableName: name } });
+
+  it('links a read to the action that set the variable, and never shows the variable name', () => {
+    show(
+      reportOf(
+        action('setvariable', { WFVariableName: 'Private Name' }),
+        action('gettext', { A: variable('Private Name'), B: variable('nobody') })
+      )
+    );
+    const second = document.querySelector('#action-2') as HTMLElement;
+    expect(second.textContent).toContain('uses variables set by #1');
+    expect(second.textContent).toContain('1 unset variable');
+    expect(document.body.innerHTML).not.toContain('Private Name');
+    expect(document.body.innerHTML).not.toContain('nobody');
+  });
+
+  it('says which magic input an action reads, and reports the clipboard token', () => {
+    show(reportOf(action('gettext', { A: { Value: { Type: 'Clipboard' } } })));
+    expect((document.querySelector('#action-1') as HTMLElement).textContent).toContain(
+      'reads clipboard'
+    );
+    expect(headingTexts(5)).toContain('Sensitive inputs');
+  });
+});

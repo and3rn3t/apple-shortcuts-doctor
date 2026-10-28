@@ -26,12 +26,27 @@ function actionLine(
   indentUnit: string
 ): string {
   const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(', #')}` : '';
-  const unresolved = action.unresolvedReferenceCount
-    ? ` (${action.unresolvedReferenceCount} unresolved reference(s))`
+  const viaVariables = action.usesVariables.length
+    ? ` <~ #${action.usesVariables.join(', #')}`
     : '';
+  const unresolved = unresolvedNote(action);
   const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : '';
+  const inputs = action.magicInputs?.length ? ` {reads ${action.magicInputs.join(', ')}}` : '';
+  const names = action.variableNames?.length
+    ? ` {variables ${action.variableNames.map(name => label(name)).join(', ')}}`
+    : '';
   const indent = indentUnit.repeat(Math.min(action.depth, MAX_INDENT_DEPTH));
-  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${depends}${unresolved}`;
+  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${unresolved}`;
+}
+
+function unresolvedNote(action: InspectedAction): string {
+  const notes = [
+    action.unresolvedReferenceCount
+      ? `${action.unresolvedReferenceCount} unresolved reference(s)`
+      : '',
+    action.unresolvedVariableCount ? `${action.unresolvedVariableCount} unset variable(s)` : '',
+  ].filter(note => note !== '');
+  return notes.length ? ` (${notes.join(', ')})` : '';
 }
 
 function findingLine(finding: Finding): string {

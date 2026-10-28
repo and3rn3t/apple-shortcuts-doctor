@@ -120,6 +120,22 @@ function ActionItem({ action }: { action: InspectedAction }): React.JSX.Element 
           uses the output of <ActionLinks indexes={action.dependsOn} />
         </span>
       ) : null}
+      {action.usesVariables.length ? (
+        <span className="where">
+          {' '}
+          uses variables set by <ActionLinks indexes={action.usesVariables} />
+        </span>
+      ) : null}
+      {action.magicInputs?.length ? (
+        <span className="where"> reads {action.magicInputs.join(', ')}</span>
+      ) : null}
+      {action.unresolvedVariableCount ? (
+        <span className="where">
+          {' '}
+          {action.unresolvedVariableCount} unset variable
+          {action.unresolvedVariableCount === 1 ? '' : 's'}
+        </span>
+      ) : null}
       {action.unresolvedReferenceCount ? (
         <span className="where">
           {' '}

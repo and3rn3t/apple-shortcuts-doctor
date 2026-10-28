@@ -292,7 +292,7 @@ var LIMITATIONS = [
   "Parameters are omitted. Action identifiers are untrusted and may reveal app usage.",
   "Rules cover a limited set of action identifiers, not every Apple or third-party action.",
   "Dependencies show explicit OutputUUID references, not proven runtime data flows.",
-  "Blocks (if, menu, repeat) are shown as structure and never evaluated. Implicit input, variables, nested workflows, and permissions are not resolved.",
+  "Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Implicit input, nested workflows, and permissions are not resolved.",
   "No findings does not mean safe; destinations, payloads, and runtime behavior need manual review."
 ];
 function isRecord(value) {
@@ -342,9 +342,7 @@ function duplicateOutputFindings(uuidIndexes) {
     message: "Multiple actions declare the same output UUID; references are ambiguous."
   }));
 }
-function collectReferences(parameters, position, uuidIndexes) {
-  const dependsOn = /* @__PURE__ */ new Set();
-  let unresolvedReferenceCount = 0;
+function visitRecords(parameters, visit) {
   const stack = [parameters];
   while (stack.length) {
     const value = stack.pop();
@@ -353,15 +351,118 @@ function collectReferences(parameters, position, uuidIndexes) {
       continue;
     }
     if (!isRecord(value)) continue;
-    if (typeof value.OutputUUID === "string") {
-      const targets = uuidIndexes.get(value.OutputUUID);
-      const target = targets?.length === 1 ? targets[0] : void 0;
-      if (target === void 0 || target >= position) unresolvedReferenceCount++;
-      else dependsOn.add(target);
-    }
+    visit(value);
     for (const child of Object.values(value)) stack.push(child);
   }
+}
+function collectReferences(parameters, position, uuidIndexes) {
+  const dependsOn = /* @__PURE__ */ new Set();
+  let unresolvedReferenceCount = 0;
+  visitRecords(parameters, (record) => {
+    if (typeof record.OutputUUID !== "string") return;
+    const targets = uuidIndexes.get(record.OutputUUID);
+    const target = targets?.length === 1 ? targets[0] : void 0;
+    if (target === void 0 || target >= position) unresolvedReferenceCount++;
+    else dependsOn.add(target);
+  });
   return { dependsOn: [...dependsOn].sort((a, b) => a - b), unresolvedReferenceCount };
+}
+var MAGIC_INPUTS = {
+  ExtensionInput: "shortcut-input",
+  Clipboard: "clipboard",
+  Ask: "ask",
+  CurrentDate: "current-date",
+  DeviceDetails: "device-details"
+};
+var MAGIC_ORDER = [
+  "shortcut-input",
+  "clipboard",
+  "ask",
+  "current-date",
+  "device-details"
+];
+var PROVIDED_VARIABLE = /^Repeat (?:Item|Index)(?: \d+)?$/;
+var SET_VARIABLE = `${ACTION_PREFIX}setvariable`;
+var APPEND_VARIABLE = `${ACTION_PREFIX}appendvariable`;
+var MAX_VARIABLE_NAME_DISPLAY = 60;
+var MAX_VARIABLE_NAMES = 50;
+function collectTokens(parameters) {
+  const variables = /* @__PURE__ */ new Set();
+  const magic = /* @__PURE__ */ new Set();
+  visitRecords(parameters, (record) => {
+    const type = record.Type;
+    if (type === "Variable" && typeof record.VariableName === "string") {
+      variables.add(record.VariableName);
+    } else if (typeof type === "string" && Object.hasOwn(MAGIC_INPUTS, type)) {
+      magic.add(MAGIC_INPUTS[type]);
+    }
+  });
+  return { variables, magic };
+}
+function displayVariableName(name) {
+  const printable = name.replace(/[^\x20-\x7e]/g, "?");
+  return printable.length > MAX_VARIABLE_NAME_DISPLAY ? `${printable.slice(0, MAX_VARIABLE_NAME_DISPLAY)}...` : printable;
+}
+var VariableTracker = class {
+  constructor(includeNames) {
+    this.includeNames = includeNames;
+  }
+  includeNames;
+  chains = /* @__PURE__ */ new Map();
+  visit(action, position) {
+    const parameters = action.WFWorkflowActionParameters ?? {};
+    const { variables, magic } = collectTokens(parameters);
+    const sources = /* @__PURE__ */ new Set();
+    let unresolved = 0;
+    for (const name of variables) {
+      const chain = this.chains.get(name);
+      if (chain) for (const source of chain) sources.add(source);
+      else if (!PROVIDED_VARIABLE.test(name)) unresolved++;
+    }
+    const identifier = action.WFWorkflowActionIdentifier;
+    const defined = parameters.WFVariableName;
+    const names = new Set(variables);
+    if (typeof defined === "string") {
+      if (identifier === SET_VARIABLE) this.chains.set(defined, [position]);
+      else if (identifier === APPEND_VARIABLE)
+        this.chains.set(defined, [...this.chains.get(defined) ?? [], position]);
+      if (identifier === SET_VARIABLE || identifier === APPEND_VARIABLE) names.add(defined);
+    }
+    const use = {
+      usesVariables: [...sources].sort((a, b) => a - b),
+      unresolvedVariableCount: unresolved
+    };
+    if (magic.size) use.magicInputs = MAGIC_ORDER.filter((input) => magic.has(input));
+    if (this.includeNames) {
+      use.variableNames = [...names].sort().slice(0, MAX_VARIABLE_NAMES).map(displayVariableName);
+    }
+    return use;
+  }
+};
+var MAGIC_FINDINGS = {
+  clipboard: {
+    ruleId: "clipboard-token",
+    message: "Reads the clipboard through a variable token, without a Get Clipboard action."
+  },
+  "device-details": {
+    ruleId: "device-details-token",
+    message: "Reads device details through a variable token."
+  }
+};
+function magicInputFindings(inputs, position) {
+  return (inputs ?? []).flatMap((input) => {
+    const finding = MAGIC_FINDINGS[input];
+    if (!finding) return [];
+    return [
+      {
+        code: "sensitive-input",
+        ruleId: finding.ruleId,
+        severity: "review",
+        actions: [position],
+        message: finding.message
+      }
+    ];
+  });
 }
 function unknownActionFinding(identifier, position) {
   const apple = isAppleIdentifier(identifier);
@@ -506,11 +607,12 @@ function toReportV1(report) {
     limitations: report.limitations
   };
 }
-function inspectWorkflow(workflow) {
+function inspectWorkflow(workflow, options = {}) {
   const rawActions = validateWorkflow(workflow);
   const uuidIndexes = indexOutputUuids(rawActions);
   const findings = duplicateOutputFindings(uuidIndexes);
   const controlFlow = analyzeControlFlow(rawActions);
+  const variables = new VariableTracker(options.includeVariableNames === true);
   findings.push(...controlFlow.unbalanced.map(unbalancedControlFlowFinding));
   const actions = rawActions.map((action, index) => {
     const position = index + 1;
@@ -525,6 +627,8 @@ function inspectWorkflow(workflow) {
       uuidIndexes
     );
     if (references.unresolvedReferenceCount) findings.push(unresolvedReferenceFinding(position));
+    const variableUse = variables.visit(action, position);
+    findings.push(...magicInputFindings(variableUse.magicInputs, position));
     const flow = controlFlow.flows[index];
     return {
       index: position,
@@ -532,6 +636,7 @@ function inspectWorkflow(workflow) {
       recognized,
       category: rule2?.category ?? (recognized ? "basic" : "unknown"),
       ...references,
+      ...variableUse,
       depth: controlFlow.depths[index] ?? 0,
       ...flow ? { flow } : {}
     };
@@ -1007,10 +1112,20 @@ var MAX_INDENT_DEPTH = 10;
 var ROLE_LABELS = { start: "start", middle: "else/item", end: "end" };
 function actionLine(action, label, indentUnit) {
   const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(", #")}` : "";
-  const unresolved = action.unresolvedReferenceCount ? ` (${action.unresolvedReferenceCount} unresolved reference(s))` : "";
+  const viaVariables = action.usesVariables.length ? ` <~ #${action.usesVariables.join(", #")}` : "";
+  const unresolved = unresolvedNote(action);
   const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : "";
+  const inputs = action.magicInputs?.length ? ` {reads ${action.magicInputs.join(", ")}}` : "";
+  const names = action.variableNames?.length ? ` {variables ${action.variableNames.map((name) => label(name)).join(", ")}}` : "";
   const indent = indentUnit.repeat(Math.min(action.depth, MAX_INDENT_DEPTH));
-  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${depends}${unresolved}`;
+  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${unresolved}`;
+}
+function unresolvedNote(action) {
+  const notes = [
+    action.unresolvedReferenceCount ? `${action.unresolvedReferenceCount} unresolved reference(s)` : "",
+    action.unresolvedVariableCount ? `${action.unresolvedVariableCount} unset variable(s)` : ""
+  ].filter((note) => note !== "");
+  return notes.length ? ` (${notes.join(", ")})` : "";
 }
 function findingLine(finding) {
   const targets = finding.actions.map((index) => `#${index}`).join(", ");
@@ -1130,6 +1245,7 @@ var USAGE = [
   "  --format text|json|md     Output format (default: text on a terminal, json when piped)",
   "  --format-version 1|2      JSON report version (default: 2)",
   "  --fail-on review|warning  Exit 2 if any finding is at or above this severity",
+  "  --show-variable-names     Include variable names (untrusted text) in the report",
   "  --quiet                   Do not print the report (errors and --fail-on notes still print)",
   "  -v, --version             Print the version",
   "  -h, --help                Show this help",
@@ -1144,6 +1260,7 @@ var INSPECT_OPTIONS = {
   format: { type: "string" },
   "format-version": { type: "string" },
   "fail-on": { type: "string" },
+  "show-variable-names": { type: "boolean" },
   quiet: { type: "boolean" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" }
@@ -1190,6 +1307,7 @@ function parseInspectArgs(argv) {
     format,
     formatVersion,
     failOn,
+    showVariableNames: values["show-variable-names"] ?? false,
     quiet: values.quiet ?? false,
     files: positionals,
     help: values.help ?? false,
@@ -1219,7 +1337,9 @@ function inspect(argv) {
     return args?.help ? 0 : 1;
   }
   try {
-    const report = inspectWorkflow(parseExport(readExport(args.files[0])));
+    const report = inspectWorkflow(parseExport(readExport(args.files[0])), {
+      includeVariableNames: args.showVariableNames
+    });
     const legacyJson = args.format === "json" && args.formatVersion === 1;
     if (!args.quiet) {
       process.stdout.write(

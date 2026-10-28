@@ -26,6 +26,14 @@ export interface FlowPosition {
   role: FlowRole;
 }
 
+/** Data sources a variable token reads without any action producing them. */
+export type MagicInput = 'shortcut-input' | 'clipboard' | 'ask' | 'current-date' | 'device-details';
+
+export interface InspectOptions {
+  /** Include variable names (untrusted text) in the report. Off by default. */
+  includeVariableNames?: boolean;
+}
+
 export interface InspectedAction {
   /** 1-based position in the workflow. */
   index: number;
@@ -35,6 +43,14 @@ export interface InspectedAction {
   /** 1-based indexes of earlier actions referenced through an explicit OutputUUID. */
   dependsOn: number[];
   unresolvedReferenceCount: number;
+  /** 1-based indexes of earlier actions that set or append to the variables this action reads. */
+  usesVariables: number[];
+  /** Reads of variables no earlier action sets (excluding Repeat Item and Repeat Index). */
+  unresolvedVariableCount: number;
+  /** Inputs read through variable tokens, such as the clipboard. Absent when there are none. */
+  magicInputs?: MagicInput[];
+  /** Names of the variables this action sets or reads. Present only with `includeVariableNames`. */
+  variableNames?: string[];
   /** How many control-flow blocks enclose the action; 0 at the top level. */
   depth: number;
   /** Present on the actions that open, continue (else, menu item), or close a block. */
@@ -69,7 +85,10 @@ export interface Report {
 export interface ReportV1 {
   formatVersion: 1;
   actionCount: number;
-  actions: Omit<InspectedAction, 'depth' | 'flow'>[];
+  actions: Omit<
+    InspectedAction,
+    'depth' | 'flow' | 'usesVariables' | 'unresolvedVariableCount' | 'magicInputs' | 'variableNames'
+  >[];
   findings: Omit<Finding, 'ruleId'>[];
   limitations: string[];
 }

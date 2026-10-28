@@ -38,6 +38,27 @@ describe('report v2', () => {
     expect(nested.findings.map(finding => finding.code)).toContain('unbalanced-control-flow');
   });
 
+  it('validates variable links, magic inputs, and opted-in names', () => {
+    const report = inspectWorkflow(
+      workflow(
+        action('setvariable', { WFVariableName: 'x' }),
+        action('gettext', {
+          A: { Value: { Type: 'Variable', VariableName: 'x' } },
+          B: { Value: { Type: 'Clipboard' } },
+        })
+      ),
+      { includeVariableNames: true }
+    );
+    expect(report.actions[1]).toMatchObject({ usesVariables: [1], magicInputs: ['clipboard'] });
+    expect(validate(report), JSON.stringify(validate.errors)).toBe(true);
+  });
+
+  it('rejects an unknown magic input', () => {
+    const broken = structuredClone(sample);
+    (broken.actions[0] as unknown as Record<string, unknown>).magicInputs = ['camera'];
+    expect(validate(broken)).toBe(false);
+  });
+
   it('rejects a block position with an unknown role', () => {
     const broken = structuredClone(sample);
     (broken.actions[0] as unknown as Record<string, unknown>).flow = { block: 1, role: 'sideways' };
@@ -74,5 +95,6 @@ describe('report v2', () => {
     expect(legacy.findings[0]).not.toHaveProperty('ruleId');
     expect(legacy.actions[0]).not.toHaveProperty('depth');
     expect(legacy.actions[0]).not.toHaveProperty('flow');
+    expect(legacy.actions[0]).not.toHaveProperty('usesVariables');
   });
 });
