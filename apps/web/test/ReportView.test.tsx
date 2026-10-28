@@ -293,13 +293,6 @@ describe('variables and magic inputs', () => {
   });
 });
 
-describe('inferred input', () => {
-  it('says the input is inferred and links to the action it probably comes from', () => {
-    show(reportOf(action('gettext'), action('setvariable', { WFVariableName: 'x' })));
-    const second = document.querySelector('#action-2') as HTMLElement;
-    expect(second.textContent).toContain('probably takes the output of #1 (inferred)');
-    expect(document.querySelector('#action-1')?.textContent).not.toContain('inferred');
-
 describe('long link lists', () => {
   const variable = (name: string): unknown => ({ Value: { Type: 'Variable', VariableName: name } });
   const appends = Array.from({ length: 400 }, () =>
@@ -326,5 +319,14 @@ describe('long link lists', () => {
 
   it('keeps every link in the data, only paging the display', () => {
     expect(report.actions[400]?.usesVariables).toHaveLength(400);
+  });
+});
+
+describe('inferred input', () => {
+  it('says the input is inferred and links to the action it probably comes from', () => {
+    show(reportOf(action('gettext'), action('setvariable', { WFVariableName: 'x' })));
+    const second = document.querySelector('#action-2') as HTMLElement;
+    expect(second.textContent).toContain('probably takes the output of #1 (inferred)');
+    expect(document.querySelector('#action-1')?.textContent).not.toContain('inferred');
   });
 });
