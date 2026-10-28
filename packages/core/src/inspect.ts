@@ -1,4 +1,12 @@
-import { ACTION_PREFIX, BASIC_ACTIONS, isAppleIdentifier, RULES } from './rules.ts';
+import { sourceToSinkFindings } from './flow.ts';
+import {
+  ACTION_PREFIX,
+  BASIC_ACTIONS,
+  IMPLICIT_INPUT_ACTIONS,
+  isAppleIdentifier,
+  PASSES_NO_OUTPUT,
+  RULES,
+} from './rules.ts';
 import type {
   ActionCategory,
   Finding,
@@ -21,7 +29,7 @@ export const LIMITATIONS: readonly string[] = [
   'Parameters are omitted. Action identifiers are untrusted and may reveal app usage.',
   'Rules cover a limited set of action identifiers, not every Apple or third-party action.',
   'Dependencies show explicit OutputUUID references, not proven runtime data flows.',
-  'Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Implicit input, nested workflows, and permissions are not resolved.',
+  'Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Where an action takes the output of the previous action by default, that is an inference and is marked as one. Possible paths from sensitive inputs to outbound actions follow references, variables, and those inferences; they are not proof of what is sent. Nested workflows and permissions are not resolved.',
   'No findings does not mean safe; destinations, payloads, and runtime behavior need manual review.',
 ];
 
@@ -451,6 +459,10 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
   const findings = duplicateOutputFindings(uuidIndexes);
   const controlFlow = analyzeControlFlow(rawActions);
   const variables = new VariableTracker(options.includeVariableNames === true);
+  let previousOutput: number | undefined;
+  // What flowed into each open block, so an Otherwise or menu item starts from it, not from the
+  // branch that precedes it (the two never run on the same path).
+  const inputAtBlockStart = new Map<number, number | undefined>();
   findings.push(...controlFlow.unbalanced.map(unbalancedControlFlowFinding));
   const actions = rawActions.map((action, index): InspectedAction => {
     const position = index + 1;
@@ -468,6 +480,20 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
     const variableUse = variables.visit(action, position);
     findings.push(...magicInputFindings(variableUse.magicInputs, position));
     const flow = controlFlow.flows[index];
+    const parameters = action.WFWorkflowActionParameters ?? {};
+    const inferredInputFrom =
+      previousOutput !== undefined &&
+      IMPLICIT_INPUT_ACTIONS.has(identifier) &&
+      !('WFInput' in parameters)
+        ? previousOutput
+        : undefined;
+    if (flow?.role === 'start') inputAtBlockStart.set(flow.block, previousOutput);
+    else if (flow?.role === 'middle') previousOutput = inputAtBlockStart.get(flow.block);
+    else if (flow?.role === 'end') inputAtBlockStart.delete(flow.block);
+    // Block markers and comments pass nothing on, so the next action's "previous output" skips them.
+    if (!('WFControlFlowMode' in parameters) && !PASSES_NO_OUTPUT.has(identifier)) {
+      previousOutput = position;
+    }
     return {
       index: position,
       identifier,
@@ -475,10 +501,12 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
       category: rule?.category ?? (recognized ? 'basic' : 'unknown'),
       ...references,
       ...variableUse,
+      ...(inferredInputFrom === undefined ? {} : { inferredInputFrom }),
       depth: controlFlow.depths[index] ?? 0,
       ...(flow ? { flow } : {}),
     };
   });
+  findings.push(...sourceToSinkFindings(actions));
   const grouped = groupFindings(findings);
   return {
     formatVersion: 2,

@@ -1,5 +1,5 @@
 import { displayIdentifier } from '@shortcuts-doctor/core';
-import type { Finding, InspectedAction, Report } from '@shortcuts-doctor/core';
+import type { Finding, FlowPath, InspectedAction, Report } from '@shortcuts-doctor/core';
 import { useState } from 'react';
 import type { RefObject } from 'react';
 import { downloadMarkdown } from './download.ts';
@@ -72,6 +72,30 @@ function Summary({ report }: { report: Report }): React.JSX.Element {
   );
 }
 
+const MAX_PATHS_SHOWN = 3;
+const MAX_PATH_STEPS_SHOWN = 12;
+
+/** A route from a sensitive input to an outbound action; a long one shows its start and end. */
+function PathView({ path }: { path: FlowPath }): React.JSX.Element {
+  const steps = path.actions;
+  const shown =
+    steps.length > MAX_PATH_STEPS_SHOWN
+      ? [...steps.slice(0, 6), undefined, ...steps.slice(-5)]
+      : steps;
+  return (
+    <li>
+      Possible path:{' '}
+      {shown.map((index, position) => (
+        <span key={position}>
+          {position ? ' → ' : ''}
+          {index === undefined ? '…' : <a href={`#action-${index}`}>#{index}</a>}
+        </span>
+      ))}
+      {path.inferred ? ' (includes an inferred step)' : ''}
+    </li>
+  );
+}
+
 function FindingItem({ finding }: { finding: Finding }): React.JSX.Element {
   return (
     <li>
@@ -80,6 +104,16 @@ function FindingItem({ finding }: { finding: Finding }): React.JSX.Element {
         {finding.actions.length === 1 ? 'Action ' : 'Actions '}
         <ActionLinks indexes={finding.actions} />
       </span>
+      {finding.paths?.length ? (
+        <ul className="paths">
+          {finding.paths.slice(0, MAX_PATHS_SHOWN).map((path, position) => (
+            <PathView key={position} path={path} />
+          ))}
+          {finding.paths.length > MAX_PATHS_SHOWN ? (
+            <li>and {finding.paths.length - MAX_PATHS_SHOWN} more in the downloaded report</li>
+          ) : null}
+        </ul>
+      ) : null}
     </li>
   );
 }
@@ -144,6 +178,13 @@ function ActionItem({ action }: { action: InspectedAction }): React.JSX.Element 
         <span className="where">
           {' '}
           uses variables set by <ActionLinks indexes={action.usesVariables} />
+        </span>
+      ) : null}
+      {action.inferredInputFrom ? (
+        <span className="where">
+          {' '}
+          probably takes the output of <ActionLinks indexes={[action.inferredInputFrom]} />{' '}
+          (inferred)
         </span>
       ) : null}
       {action.magicInputs?.length ? (

@@ -76,6 +76,15 @@ describe('report v2', () => {
     expect(validate(old), JSON.stringify(validate.errors)).toBe(true);
   });
 
+  it('validates possible-flow paths and rejects a malformed one', () => {
+    const flow = sample.findings.find(finding => finding.code === 'possible-flow');
+    expect(flow?.paths).toEqual([{ actions: [1, 2], inferred: false }]);
+    const broken = structuredClone(sample);
+    const finding = broken.findings.find(f => f.code === 'possible-flow');
+    (finding as unknown as Record<string, unknown>).paths = [{ actions: [], inferred: 'yes' }];
+    expect(validate(broken)).toBe(false);
+  });
+
   it('rejects the legacy shape', () => {
     expect(validate(toReportV1(sample))).toBe(false);
   });
@@ -87,7 +96,8 @@ describe('report v2', () => {
       unknown: 1,
       basic: 1,
     });
-    expect(sample.summary.findingsBySeverity.warning).toBe(1);
+    // The unresolved reference, and the clipboard value that may reach the request (possible-flow).
+    expect(sample.summary.findingsBySeverity.warning).toBe(2);
     const total = sample.summary.findingsBySeverity;
     expect(total.review + total.warning).toBe(sample.findings.length);
   });

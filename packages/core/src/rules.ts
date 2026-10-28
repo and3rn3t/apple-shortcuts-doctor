@@ -304,3 +304,44 @@ export const BASIC_ACTIONS: ReadonlySet<string> = new Set(
 export function isAppleIdentifier(identifier: string): boolean {
   return identifier.startsWith(ACTION_PREFIX) || identifier.startsWith(APPLE_INTENT_PREFIX);
 }
+
+/**
+ * Actions whose input is the previous action's output when their `WFInput` parameter is absent.
+ * Each appears in at least 85% of its uses in 138 real exports with an explicit `WFInput`, the
+ * parameter that overrides the default (docs/research/export-format.md). A missing `WFInput` on
+ * one of these is read as "takes the previous output"; that is an inference, never a certainty.
+ */
+const IMPLICIT_INPUT_IDS: readonly string[] = [
+  'setvariable',
+  'appendvariable',
+  'getvalueforkey',
+  'math',
+  'round',
+  'detect.dictionary',
+  'detect.text',
+  'detect.number',
+  'detect.link',
+  'choosefromlist',
+  'getitemfromlist',
+  'getitemtype',
+  'setitemname',
+  'text.replace',
+  'base64encode',
+  'urlencode',
+  'hash',
+  'openurl',
+  'setclipboard',
+  'documentpicker.save',
+  'previewdocument',
+  'file.delete',
+  'file.append',
+  'runworkflow',
+  'measurement.convert',
+];
+
+export const IMPLICIT_INPUT_ACTIONS: ReadonlySet<string> = new Set(
+  IMPLICIT_INPUT_IDS.map(id => `${ACTION_PREFIX}${id}`)
+);
+
+/** Actions that pass nothing along, so the "previous output" skips over them. */
+export const PASSES_NO_OUTPUT: ReadonlySet<string> = new Set([`${ACTION_PREFIX}comment`]);
