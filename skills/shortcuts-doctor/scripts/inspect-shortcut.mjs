@@ -501,7 +501,7 @@ function analyzeControlFlow(rawActions) {
     const id = parameters?.GroupingIdentifier;
     flows.push(void 0);
     depths.push(open.length);
-    if (mode === void 0) return;
+    if (mode === void 0 && id === void 0) return;
     if (!(mode === 0 || mode === 1 || mode === 2) || typeof id !== "string" || id === "") {
       unbalanced.add(position);
       return;
@@ -1110,15 +1110,16 @@ function markdownCode(text) {
 }
 var MAX_INDENT_DEPTH = 10;
 var ROLE_LABELS = { start: "start", middle: "else/item", end: "end" };
-function actionLine(action, label, indentUnit) {
+function actionLine(action, label, style) {
   const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(", #")}` : "";
   const viaVariables = action.usesVariables.length ? ` <~ #${action.usesVariables.join(", #")}` : "";
   const unresolved = unresolvedNote(action);
   const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : "";
   const inputs = action.magicInputs?.length ? ` {reads ${action.magicInputs.join(", ")}}` : "";
   const names = action.variableNames?.length ? ` {variables ${action.variableNames.map((name) => label(name)).join(", ")}}` : "";
-  const indent = indentUnit.repeat(Math.min(action.depth, MAX_INDENT_DEPTH));
-  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${unresolved}`;
+  const level = Math.min(action.depth, MAX_INDENT_DEPTH);
+  const lead = style === "markdown" ? `${"  ".repeat(level)}- ${action.index}\\.` : `${"  ".repeat(level)}${action.index}.`;
+  return `${lead} ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${unresolved}`;
 }
 function unresolvedNote(action) {
   const notes = [
@@ -1140,7 +1141,7 @@ function renderText(report) {
     "",
     ...section(
       "Actions",
-      report.actions.map((action) => actionLine(action, (text) => text, "  ")),
+      report.actions.map((action) => actionLine(action, (text) => text, "text")),
       "(none)"
     ),
     "",
@@ -1164,7 +1165,7 @@ function renderMarkdown(report) {
     "",
     ...section(
       "## Actions",
-      report.actions.map((action) => actionLine(action, markdownCode, "   ")),
+      report.actions.map((action) => actionLine(action, markdownCode, "markdown")),
       "_None._"
     ),
     "",

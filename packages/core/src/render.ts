@@ -19,11 +19,15 @@ const MAX_INDENT_DEPTH = 10;
 
 const ROLE_LABELS = { start: 'start', middle: 'else/item', end: 'end' } as const;
 
-/** Nested actions are indented under their block; very deep nesting stops indenting. */
+/**
+ * Nested actions are indented under their block; very deep nesting stops indenting. Markdown uses
+ * nested bullets with the action number written out (the backslash keeps `10.` from starting a
+ * list), so nesting works at any depth and the numbers match the ones findings refer to.
+ */
 function actionLine(
   action: InspectedAction,
   label: (text: string) => string,
-  indentUnit: string
+  style: 'text' | 'markdown'
 ): string {
   const depends = action.dependsOn.length ? ` <- #${action.dependsOn.join(', #')}` : '';
   const viaVariables = action.usesVariables.length
@@ -35,8 +39,12 @@ function actionLine(
   const names = action.variableNames?.length
     ? ` {variables ${action.variableNames.map(name => label(name)).join(', ')}}`
     : '';
-  const indent = indentUnit.repeat(Math.min(action.depth, MAX_INDENT_DEPTH));
-  return `${indent}${action.index}. ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${unresolved}`;
+  const level = Math.min(action.depth, MAX_INDENT_DEPTH);
+  const lead =
+    style === 'markdown'
+      ? `${'  '.repeat(level)}- ${action.index}\\.`
+      : `${'  '.repeat(level)}${action.index}.`;
+  return `${lead} ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${unresolved}`;
 }
 
 function unresolvedNote(action: InspectedAction): string {
@@ -65,7 +73,7 @@ export function renderText(report: Report): string {
     '',
     ...section(
       'Actions',
-      report.actions.map(action => actionLine(action, text => text, '  ')),
+      report.actions.map(action => actionLine(action, text => text, 'text')),
       '(none)'
     ),
     '',
@@ -90,7 +98,7 @@ export function renderMarkdown(report: Report): string {
     '',
     ...section(
       '## Actions',
-      report.actions.map(action => actionLine(action, markdownCode, '   ')),
+      report.actions.map(action => actionLine(action, markdownCode, 'markdown')),
       '_None._'
     ),
     '',

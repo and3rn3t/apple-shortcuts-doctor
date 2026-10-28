@@ -14,3 +14,8 @@
 ### Changed
 
 - The "branches, loops" limitation now says blocks are shown as structure and never evaluated.
+
+### Changed
+
+- Markdown reports nest blocks as bullets with the action number written out, so nesting and
+  numbering stay correct for any action number (`10.` and up included).

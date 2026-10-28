@@ -111,10 +111,7 @@
           "recognized",
           "category",
           "dependsOn",
-          "unresolvedReferenceCount",
-          "usesVariables",
-          "unresolvedVariableCount",
-          "depth"
+          "unresolvedReferenceCount"
         ],
         "properties": {
           "index": {
