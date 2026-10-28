@@ -98,6 +98,15 @@ describe('request shape', () => {
     expect(shapeOf(parameters)?.body).toBe(expected);
   });
 
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf'])(
+    'treats the inherited property name %s as an unknown body type, with a valid JSON shape',
+    name => {
+      const shape = shapeOf({ WFHTTPBodyType: name });
+      expect(shape?.body).toBe('unknown');
+      expect(JSON.parse(JSON.stringify(shape))).toEqual(shape);
+    }
+  );
+
   it('counts headers and never shows a name or value', () => {
     const shape = shapeOf({ WFHTTPHeaders: headers(3) });
     expect(shape?.headers).toBe(3);
@@ -150,6 +159,11 @@ describe('request shape', () => {
         'a host that a variable continues',
         tokenString(`https://api${OBJECT}.example.invalid/x`, 'h'),
       ],
+      [
+        'a backslash that ends the authority',
+        'https://public.invalid\\@private-path-token.invalid/x',
+      ],
+      ['a backslash before userinfo', 'https://user\\@host.example.invalid/x'],
       ['a URL with no host', 'not a url'],
       ['a host with odd characters', 'https://exa mple.invalid/'],
       ['an IPv6 literal', 'https://[::1]/x'],
