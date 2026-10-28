@@ -87,6 +87,7 @@ test.describe('the report', () => {
   test('fits a phone screen without scrolling sideways', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await openApp(page);
+    await page.getByText('Have an iCloud link instead?').click();
     await page.setInputFiles('input[type=file]', upload('a.json', fixture('mixed-actions.json')));
     await expect(page.getByRole('heading', { name: 'Report' })).toBeVisible();
     const overflow = await page.evaluate(

@@ -16,6 +16,13 @@ async function violationsOf(page: Page): Promise<string[]> {
 const STATES: [string, (page: Page) => Promise<void>][] = [
   ['the empty page', async () => undefined],
   [
+    'the opened iCloud link help',
+    async page => {
+      await page.getByText('Have an iCloud link instead?').click();
+      await expect(page.getByText(/should start with/)).toBeVisible();
+    },
+  ],
+  [
     'a report',
     async page => {
       await page.setInputFiles('input[type=file]', upload('a.json', fixture('mixed-actions.json')));
