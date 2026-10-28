@@ -18,3 +18,8 @@
 
 - The variables limitation now says they are linked by name to the closest earlier set or append,
   ignoring branches and loops.
+
+### Fixed
+
+- The web report shows long lists of links 50 at a time with a "Show more" button, so an export
+  where thousands of actions read thousands of others cannot freeze the page. The data keeps every link.

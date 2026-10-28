@@ -292,3 +292,32 @@ describe('variables and magic inputs', () => {
     expect(headingTexts(5)).toContain('Sensitive inputs');
   });
 });
+
+describe('long link lists', () => {
+  const variable = (name: string): unknown => ({ Value: { Type: 'Variable', VariableName: name } });
+  const appends = Array.from({ length: 400 }, () =>
+    action('appendvariable', { WFVariableName: 'x' })
+  );
+  const report = reportOf(...appends, action('gettext', { A: variable('x') }));
+
+  it('renders only the first page of links, and says how many are hidden', () => {
+    show(report);
+    const last = document.querySelector('#action-401') as HTMLElement;
+    expect(last.querySelectorAll('a')).toHaveLength(50);
+    expect(within(last).getByRole('button').textContent).toBe('Show 200 more (350 hidden)');
+  });
+
+  it('shows more on request until none are hidden', () => {
+    show(report);
+    const last = document.querySelector('#action-401') as HTMLElement;
+    fireEvent.click(within(last).getByRole('button'));
+    expect(last.querySelectorAll('a')).toHaveLength(250);
+    fireEvent.click(within(last).getByRole('button'));
+    expect(last.querySelectorAll('a')).toHaveLength(400);
+    expect(within(last).queryByRole('button')).toBeNull();
+  });
+
+  it('keeps every link in the data, only paging the display', () => {
+    expect(report.actions[400]?.usesVariables).toHaveLength(400);
+  });
+});

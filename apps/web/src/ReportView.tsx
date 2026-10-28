@@ -1,18 +1,38 @@
 import { displayIdentifier } from '@shortcuts-doctor/core';
 import type { Finding, InspectedAction, Report } from '@shortcuts-doctor/core';
+import { useState } from 'react';
 import type { RefObject } from 'react';
 import { downloadMarkdown } from './download.ts';
 import { FINDING_LABEL, FINDING_ORDER, SEVERITIES, SEVERITY_LABEL } from './labels.ts';
 
+/** A valid export can link thousands of actions to thousands more, so links render in pages. */
+const LINKS_PER_PAGE = 50;
+const LINKS_PER_MORE = 200;
+
 function ActionLinks({ indexes }: { indexes: readonly number[] }): React.JSX.Element {
+  const [shown, setShown] = useState(LINKS_PER_PAGE);
+  const visible = indexes.slice(0, shown);
+  const hidden = indexes.length - visible.length;
   return (
     <>
-      {indexes.map((index, position) => (
+      {visible.map((index, position) => (
         <span key={index}>
           {position ? ', ' : ''}
           <a href={`#action-${index}`}>#{index}</a>
         </span>
       ))}
+      {hidden > 0 ? (
+        <>
+          {', '}
+          <button
+            type="button"
+            className="link-more"
+            onClick={() => setShown(shown + LINKS_PER_MORE)}
+          >
+            Show {Math.min(hidden, LINKS_PER_MORE)} more ({hidden} hidden)
+          </button>
+        </>
+      ) : null}
     </>
   );
 }
