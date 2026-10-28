@@ -137,6 +137,31 @@
             "type": "integer",
             "minimum": 0
           },
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["url", "method", "body", "headers"],
+            "properties": {
+              "url": {
+                "enum": ["literal", "dynamic", "missing"]
+              },
+              "method": {
+                "enum": ["default", "get", "post", "put", "patch", "delete", "dynamic", "other"]
+              },
+              "body": {
+                "enum": ["none", "json", "form", "file", "unknown"]
+              },
+              "headers": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "host": {
+                "type": "string",
+                "maxLength": 253,
+                "pattern": "^[a-z0-9][a-z0-9.-]*$"
+              }
+            }
+          },
           "inferredInputFrom": {
             "$ref": "#/$defs/actionIndex"
           },

@@ -30,7 +30,20 @@ export interface FlowPosition {
 /** Data sources a variable token reads without any action producing them. */
 export type MagicInput = 'shortcut-input' | 'clipboard' | 'ask' | 'current-date' | 'device-details';
 
+/** The kind of request a Get Contents of URL action makes. Shape only: never a value. */
+export interface RequestShape {
+  url: 'literal' | 'dynamic' | 'missing';
+  method: 'default' | 'get' | 'post' | 'put' | 'patch' | 'delete' | 'dynamic' | 'other';
+  body: 'none' | 'json' | 'form' | 'file' | 'unknown';
+  /** How many headers are set; their names and values are never read. */
+  headers: number;
+  /** Hostname of a literal URL. Present only with `includeHosts`, and when it can be read. */
+  host?: string;
+}
+
 export interface InspectOptions {
+  /** Include hostnames of literal request URLs (untrusted text) in the report. Off by default. */
+  includeHosts?: boolean;
   /** Include variable names (untrusted text) in the report. Off by default. */
   includeVariableNames?: boolean;
 }
@@ -53,6 +66,8 @@ export interface InspectedAction {
    * receives the output of this earlier action (1-based). Distinct from `dependsOn`.
    */
   inferredInputFrom?: number;
+  /** What kind of request a Get Contents of URL action makes. */
+  request?: RequestShape;
   /** Inputs read through variable tokens, such as the clipboard. Absent when there are none. */
   magicInputs?: MagicInput[];
   /** Names of the variables this action sets or reads. Present only with `includeVariableNames`. */

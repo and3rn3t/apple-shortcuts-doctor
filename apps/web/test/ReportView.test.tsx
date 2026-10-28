@@ -386,3 +386,25 @@ describe('possible data flows', () => {
     expect(screen.getByText('and 2 more in the downloaded report')).toBeTruthy();
   });
 });
+
+describe('request shape', () => {
+  it('describes the request an action makes, and never shows its URL, host, or headers', () => {
+    show(
+      reportOf(
+        action('downloadurl', {
+          WFURL: 'https://private-host.invalid/secret?token=abc',
+          WFHTTPMethod: 'POST',
+          WFHTTPBodyType: 'JSON',
+          WFHTTPHeaders: {
+            Value: {
+              WFDictionaryFieldValueItems: [{ WFKey: { Value: { string: 'Authorization' } } }],
+            },
+          },
+        })
+      )
+    );
+    const item = document.querySelector('#action-1') as HTMLElement;
+    expect(item.textContent).toContain('request: POST, json body, 1 header, literal URL');
+    expect(document.body.innerHTML).not.toMatch(/private-host|secret|token=abc|Authorization/);
+  });
+});

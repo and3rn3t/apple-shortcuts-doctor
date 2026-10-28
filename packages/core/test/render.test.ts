@@ -32,7 +32,9 @@ describe('renderers', () => {
   it('renders text with actions, findings, and limitations', () => {
     const text = renderText(report);
     expect(text).toContain('3 action(s)');
-    expect(text).toContain('2. downloadurl [outbound] <- #1');
+    expect(text).toContain(
+      '2. downloadurl [outbound] {default method, no body, 0 headers, literal URL} <- #1'
+    );
     expect(text).toContain('REVIEW sensitive-input (#1)');
     expect(text).toContain('Limitations');
   });
@@ -40,7 +42,9 @@ describe('renderers', () => {
   it('renders markdown with headings', () => {
     const md = renderMarkdown(report);
     expect(md).toContain('## Findings');
-    expect(md).toContain('- 2\\. `downloadurl` [outbound] <- #1');
+    expect(md).toContain(
+      '- 2\\. `downloadurl` [outbound] {default method, no body, 0 headers, literal URL} <- #1'
+    );
   });
 
   it('does not leak parameter values or UUIDs', () => {

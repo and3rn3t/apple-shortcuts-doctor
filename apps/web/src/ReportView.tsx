@@ -1,4 +1,4 @@
-import { displayIdentifier } from '@shortcuts-doctor/core';
+import { describeRequest, displayIdentifier } from '@shortcuts-doctor/core';
 import type { Finding, FlowPath, InspectedAction, Report } from '@shortcuts-doctor/core';
 import { useState } from 'react';
 import type { RefObject } from 'react';
@@ -162,6 +162,9 @@ function ActionItem({ action }: { action: InspectedAction }): React.JSX.Element 
       {/* Identifiers come from the export and are untrusted: shown as text only, never as HTML. */}
       <code>{displayIdentifier(action.identifier)}</code>{' '}
       <span className="category">{action.category}</span>
+      {action.request ? (
+        <span className="where"> request: {describeRequest(action.request)}</span>
+      ) : null}
       {action.flow ? (
         <span className="where">
           {' '}

@@ -221,6 +221,48 @@ describe('standalone skill bundle', () => {
     });
   });
 
+  describe('request shape and hosts', () => {
+    const file = (): string => {
+      const path = join(temporaryDirectory(), 'request.json');
+      writeFileSync(
+        path,
+        JSON.stringify(
+          workflow(
+            action('downloadurl', {
+              WFURL: 'https://user:hunter2@private-host.invalid:8443/secret/path?token=abc',
+              WFHTTPMethod: 'POST',
+              WFHTTPBodyType: 'JSON',
+              WFJSONValues: { secret: 'value' },
+            })
+          )
+        )
+      );
+      return path;
+    };
+
+    it('describes the shape in JSON, text and Markdown, with no host by default', () => {
+      const request = JSON.parse(run(['--', file()]).stdout).actions[0].request;
+      expect(request).toEqual({ url: 'literal', method: 'post', body: 'json', headers: 0 });
+      for (const format of ['text', 'md']) {
+        const output = run(['--format', format, '--', file()]).stdout;
+        expect(output).toContain('{POST, json body, 0 headers, literal URL}');
+        expect(output).not.toMatch(/private-host|hunter2|8443|secret|token=abc/);
+      }
+    });
+
+    it('adds only the hostname with --show-hosts, and leaves v1 untouched', () => {
+      const shown = run(['--show-hosts', '--', file()]);
+      expect(JSON.parse(shown.stdout).actions[0].request.host).toBe('private-host.invalid');
+      expect(shown.stdout).not.toMatch(/hunter2|8443|secret|token=abc/);
+      expect(run(['--show-hosts', '--format', 'text', '--', file()]).stdout).toContain(
+        'literal URL, host private-host.invalid}'
+      );
+      const legacy = run(['--format-version', '1', '--show-hosts', '--', file()]);
+      expect(JSON.parse(legacy.stdout).actions[0]).not.toHaveProperty('request');
+      expect(legacy.stdout).not.toContain('private-host');
+    });
+  });
+
   it('emits v2 by default and v1 on request', () => {
     const file = join(temporaryDirectory(), 'export.json');
     writeFileSync(file, JSON.stringify(workflow()));

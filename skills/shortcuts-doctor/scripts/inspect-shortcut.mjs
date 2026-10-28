@@ -106,6 +106,84 @@ function walkBack(actions, reach, statedOnly, sink, slot, sourceIndexes) {
   return path.reverse().map((index) => index + 1);
 }
 
+// packages/core/src/request.ts
+var DOWNLOAD_URL = "is.workflow.actions.downloadurl";
+var PLACEHOLDER = "\uFFFC";
+var METHODS = /* @__PURE__ */ new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+var BODY_TYPES = {
+  JSON: "json",
+  Form: "form",
+  File: "file"
+};
+var BODY_PARAMETERS = ["WFJSONValues", "WFFormValues", "WFRequestVariable"];
+var HOST_PATTERN = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/i;
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function readText(value) {
+  if (typeof value === "string") return { string: value, hasVariables: false };
+  if (!isRecord(value) || !isRecord(value.Value)) return void 0;
+  const { string, attachmentsByRange } = value.Value;
+  if (typeof string !== "string") return void 0;
+  const attached = isRecord(attachmentsByRange) && Object.keys(attachmentsByRange).length > 0;
+  return { string, hasVariables: attached || string.includes(PLACEHOLDER) };
+}
+function isVariable(value) {
+  return isRecord(value) && value.WFSerializationType === "WFTextTokenAttachment";
+}
+function urlKind(parameters) {
+  if (isVariable(parameters.WFURL)) return "dynamic";
+  const text = readText(parameters.WFURL);
+  if (!text) return "missing";
+  return text.hasVariables ? "dynamic" : "literal";
+}
+function methodKind(parameters) {
+  const method = parameters.WFHTTPMethod;
+  if (method === void 0) return "default";
+  if (typeof method === "string") {
+    return METHODS.has(method) ? method.toLowerCase() : "other";
+  }
+  return isVariable(method) || readText(method)?.hasVariables ? "dynamic" : "other";
+}
+function bodyKind(parameters) {
+  const type = parameters.WFHTTPBodyType;
+  if (typeof type === "string")
+    return Object.hasOwn(BODY_TYPES, type) ? BODY_TYPES[type] : "unknown";
+  if (type !== void 0) return "unknown";
+  return BODY_PARAMETERS.some((name) => name in parameters) ? "unknown" : "none";
+}
+function headerCount(parameters) {
+  const headers = parameters.WFHTTPHeaders;
+  if (!isRecord(headers) || !isRecord(headers.Value)) return 0;
+  const items = headers.Value.WFDictionaryFieldValueItems;
+  return Array.isArray(items) ? items.length : 0;
+}
+function hostname(parameters) {
+  const text = readText(parameters.WFURL);
+  if (!text) return void 0;
+  const placeholder = text.string.indexOf(PLACEHOLDER);
+  const known = placeholder === -1 ? text.string : text.string.slice(0, placeholder);
+  const match = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)([/?#]?)/i.exec(known);
+  if (!match) return void 0;
+  const [, authority = "", delimiter = ""] = match;
+  if (authority.includes("\\")) return void 0;
+  if (placeholder !== -1 && delimiter === "") return void 0;
+  const host = (authority.split("@").pop() ?? "").replace(/:\d*$/, "").toLowerCase();
+  return HOST_PATTERN.test(host) ? host : void 0;
+}
+function requestShape(identifier, parameters, includeHosts) {
+  if (identifier !== DOWNLOAD_URL) return void 0;
+  const shape = {
+    url: urlKind(parameters),
+    method: methodKind(parameters),
+    body: bodyKind(parameters),
+    headers: headerCount(parameters)
+  };
+  const host = includeHosts ? hostname(parameters) : void 0;
+  if (host) shape.host = host;
+  return shape;
+}
+
 // packages/core/src/rules.ts
 var ACTION_PREFIX = "is.workflow.actions.";
 var APPLE_INTENT_PREFIX = "com.apple.";
@@ -428,19 +506,19 @@ var LIMITATIONS = [
   "Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Where an action takes the output of the previous action by default, that is an inference and is marked as one. Possible paths from sensitive inputs to outbound actions follow references, variables, and those inferences; they are not proof of what is sent. Nested workflows and permissions are not resolved.",
   "No findings does not mean safe; destinations, payloads, and runtime behavior need manual review."
 ];
-function isRecord(value) {
+function isRecord2(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 function isValidAction(action) {
-  if (!isRecord(action)) return false;
+  if (!isRecord2(action)) return false;
   const identifier = action.WFWorkflowActionIdentifier;
   const parameters = action.WFWorkflowActionParameters;
-  return typeof identifier === "string" && ACTION_IDENTIFIER_PATTERN.test(identifier) && identifier.length <= MAX_IDENTIFIER_LENGTH && (parameters === void 0 || isRecord(parameters));
+  return typeof identifier === "string" && ACTION_IDENTIFIER_PATTERN.test(identifier) && identifier.length <= MAX_IDENTIFIER_LENGTH && (parameters === void 0 || isRecord2(parameters));
 }
 function validateWorkflow(workflow) {
-  if (!isRecord(workflow) || !Array.isArray(workflow.WFWorkflowActions)) {
+  if (!isRecord2(workflow) || !Array.isArray(workflow.WFWorkflowActions)) {
     throw new Error("Expected a workflow dictionary containing WFWorkflowActions.");
   }
   const declaredActions = workflow.WFWorkflowActions;
@@ -483,7 +561,7 @@ function visitRecords(parameters, visit) {
       for (const item of value) stack.push(item);
       continue;
     }
-    if (!isRecord(value)) continue;
+    if (!isRecord2(value)) continue;
     visit(value);
     for (const child of Object.values(value)) stack.push(child);
   }
@@ -766,6 +844,7 @@ function inspectWorkflow(workflow, options = {}) {
     findings.push(...magicInputFindings(variableUse.magicInputs, position));
     const flow = controlFlow.flows[index];
     const parameters = action.WFWorkflowActionParameters ?? {};
+    const request = requestShape(identifier, parameters, options.includeHosts === true);
     const inferredInputFrom = previousOutput !== void 0 && IMPLICIT_INPUT_ACTIONS.has(identifier) && !("WFInput" in parameters) ? previousOutput : void 0;
     if (flow?.role === "start") inputAtBlockStart.set(flow.block, previousOutput);
     else if (flow?.role === "middle") previousOutput = inputAtBlockStart.get(flow.block);
@@ -781,6 +860,7 @@ function inspectWorkflow(workflow, options = {}) {
       ...references,
       ...variableUse,
       ...inferredInputFrom === void 0 ? {} : { inferredInputFrom },
+      ...request ? { request } : {},
       depth: controlFlow.depths[index] ?? 0,
       ...flow ? { flow } : {}
     };
@@ -1253,6 +1333,28 @@ function displayIdentifier(identifier) {
 function markdownCode(text) {
   return `\`${text.replaceAll("`", "'")}\``;
 }
+var METHOD_TEXT = {
+  default: "default method",
+  get: "GET",
+  post: "POST",
+  put: "PUT",
+  patch: "PATCH",
+  delete: "DELETE",
+  dynamic: "method from a variable",
+  other: "other method"
+};
+var URL_TEXT = {
+  literal: "literal URL",
+  dynamic: "dynamic URL",
+  missing: "no URL"
+};
+function describeRequest(request) {
+  const body = request.body === "none" ? "no body" : `${request.body} body`;
+  const headers = `${request.headers} header${request.headers === 1 ? "" : "s"}`;
+  const parts = [METHOD_TEXT[request.method], body, headers, URL_TEXT[request.url]];
+  if (request.host) parts.push(`host ${request.host}`);
+  return parts.join(", ");
+}
 var MAX_INDENT_DEPTH = 10;
 var ROLE_LABELS = { start: "start", middle: "else/item", end: "end" };
 function actionLine(action, label, style) {
@@ -1261,11 +1363,12 @@ function actionLine(action, label, style) {
   const inferred = action.inferredInputFrom ? ` <? #${action.inferredInputFrom}` : "";
   const unresolved = unresolvedNote(action);
   const flow = action.flow ? ` {block ${action.flow.block} ${ROLE_LABELS[action.flow.role]}}` : "";
+  const request = action.request ? ` {${describeRequest(action.request)}}` : "";
   const inputs = action.magicInputs?.length ? ` {reads ${action.magicInputs.join(", ")}}` : "";
   const names = action.variableNames?.length ? ` {variables ${action.variableNames.map((name) => label(name)).join(", ")}}` : "";
   const level = Math.min(action.depth, MAX_INDENT_DEPTH);
   const lead = style === "markdown" ? `${"  ".repeat(level)}- ${action.index}\\.` : `${"  ".repeat(level)}${action.index}.`;
-  return `${lead} ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${inputs}${names}${depends}${viaVariables}${inferred}${unresolved}`;
+  return `${lead} ${label(displayIdentifier(action.identifier))} [${action.category}]${flow}${request}${inputs}${names}${depends}${viaVariables}${inferred}${unresolved}`;
 }
 function unresolvedNote(action) {
   const notes = [
@@ -1413,6 +1516,7 @@ var USAGE = [
   "  --format-version 1|2      JSON report version (default: 2)",
   "  --fail-on review|warning  Exit 2 if any finding is at or above this severity",
   "  --show-variable-names     Include variable names (untrusted text) in the report",
+  "  --show-hosts              Include hostnames of literal request URLs in the report",
   "  --quiet                   Do not print the report (errors and --fail-on notes still print)",
   "  -v, --version             Print the version",
   "  -h, --help                Show this help",
@@ -1428,6 +1532,7 @@ var INSPECT_OPTIONS = {
   "format-version": { type: "string" },
   "fail-on": { type: "string" },
   "show-variable-names": { type: "boolean" },
+  "show-hosts": { type: "boolean" },
   quiet: { type: "boolean" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" }
@@ -1475,6 +1580,7 @@ function parseInspectArgs(argv) {
     formatVersion,
     failOn,
     showVariableNames: values["show-variable-names"] ?? false,
+    showHosts: values["show-hosts"] ?? false,
     quiet: values.quiet ?? false,
     files: positionals,
     help: values.help ?? false,
@@ -1505,7 +1611,8 @@ function inspect(argv) {
   }
   try {
     const report = inspectWorkflow(parseExport(readExport(args.files[0])), {
-      includeVariableNames: args.showVariableNames
+      includeVariableNames: args.showVariableNames,
+      includeHosts: args.showHosts
     });
     const legacyJson = args.format === "json" && args.formatVersion === 1;
     if (!args.quiet) {
