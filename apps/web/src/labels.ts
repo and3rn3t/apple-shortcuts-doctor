@@ -19,10 +19,12 @@ export const FINDING_LABEL: Record<FindingCode, string> = {
   'unresolved-reference': 'Unresolved references',
   'duplicate-output': 'Duplicate outputs',
   'unbalanced-control-flow': 'Unbalanced blocks',
+  'possible-flow': 'Possible data flows',
 };
 
 /** Order of the groups within a severity; the test checks it names every code in FINDING_LABEL. */
 export const FINDING_ORDER: readonly FindingCode[] = [
+  'possible-flow',
   'code-execution',
   'destructive',
   'outbound',

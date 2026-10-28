@@ -218,3 +218,7 @@ button.secondary {
   text-decoration: underline;
   cursor: pointer;
 }
+
+.paths {
+  margin: 0.25rem 0 0;
+}

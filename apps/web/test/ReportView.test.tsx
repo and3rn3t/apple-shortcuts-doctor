@@ -47,7 +47,8 @@ describe('report structure', () => {
   it('shows counts, and only the categories that occur', () => {
     show(report);
     const summary = screen.getByText('Actions', { selector: 'dt' }).closest('dl') as HTMLElement;
-    expect(within(summary).getByText('Warning findings').nextElementSibling?.textContent).toBe('2');
+    // The unresolved reference, the shell script, and the clipboard value that may reach the request.
+    expect(within(summary).getByText('Warning findings').nextElementSibling?.textContent).toBe('3');
     expect(within(summary).getByText('Review findings').nextElementSibling?.textContent).toBe('2');
     expect(screen.getByText('sensitive-input: 2')).toBeTruthy();
     expect(screen.getByText('basic: 1')).toBeTruthy();
@@ -56,8 +57,9 @@ describe('report structure', () => {
 
   it('lists warnings before reviews, and groups within each in a fixed order', () => {
     show(report);
-    expect(headingTexts(4)).toEqual(['Warning (2)', 'Review (2)']);
+    expect(headingTexts(4)).toEqual(['Warning (3)', 'Review (2)']);
     expect(headingTexts(5)).toEqual([
+      'Possible data flows',
       'Code execution',
       'Unresolved references',
       'Outbound channels',
@@ -328,5 +330,59 @@ describe('inferred input', () => {
     const second = document.querySelector('#action-2') as HTMLElement;
     expect(second.textContent).toContain('probably takes the output of #1 (inferred)');
     expect(document.querySelector('#action-1')?.textContent).not.toContain('inferred');
+  });
+});
+
+describe('possible data flows', () => {
+  const variable = (name: string): unknown => ({ Value: { Type: 'Variable', VariableName: name } });
+  const sensitive = reportOf(
+    action('getclipboard', { UUID: 'u1' }),
+    action('setvariable', { WFVariableName: 'x', WFInput: { Value: { OutputUUID: 'u1' } } }),
+    action('downloadurl', { WFInput: variable('x') })
+  );
+
+  it('shows the finding under its own heading with the route as links', () => {
+    show(sensitive);
+    expect(headingTexts(5)).toContain('Possible data flows');
+    const item = screen.getByText(/Possible path:/).closest('li') as HTMLElement;
+    expect(item.textContent).toBe('Possible path: #1 → #2 → #3');
+    expect([...item.querySelectorAll('a')].map(a => a.getAttribute('href'))).toEqual([
+      '#action-1',
+      '#action-2',
+      '#action-3',
+    ]);
+  });
+
+  it('says when a route relies on an inferred step', () => {
+    show(
+      reportOf(
+        action('getclipboard'),
+        action('setvariable', { WFVariableName: 'x' }),
+        action('downloadurl', { WFInput: variable('x') })
+      )
+    );
+    expect(screen.getByText(/Possible path:/).textContent).toContain('(includes an inferred step)');
+  });
+
+  it('shortens a long route and says how many more routes are in the download', () => {
+    const chain = [action('getclipboard', { UUID: 'u0' })];
+    for (let i = 1; i < 30; i++) {
+      chain.push(
+        action('gettext', { UUID: `u${i}`, WFInput: { Value: { OutputUUID: `u${i - 1}` } } })
+      );
+    }
+    chain.push(action('downloadurl', { WFInput: { Value: { OutputUUID: 'u29' } } }));
+    show(reportOf(...chain));
+    expect(screen.getByText(/Possible path:/).textContent).toBe(
+      'Possible path: #1 → #2 → #3 → #4 → #5 → #6 → … → #27 → #28 → #29 → #30 → #31'
+    );
+    cleanup();
+    const sources = Array.from({ length: 5 }, (_, i) => action('getclipboard', { UUID: `s${i}` }));
+    const inputs = Object.fromEntries(
+      sources.map((_, i) => [`k${i}`, { Value: { OutputUUID: `s${i}` } }])
+    );
+    show(reportOf(...sources, action('downloadurl', { WFInput: inputs })));
+    expect(screen.getAllByText(/Possible path:/)).toHaveLength(3);
+    expect(screen.getByText('and 2 more in the downloaded report')).toBeTruthy();
   });
 });

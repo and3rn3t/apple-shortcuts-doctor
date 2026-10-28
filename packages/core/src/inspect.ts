@@ -1,3 +1,4 @@
+import { sourceToSinkFindings } from './flow.ts';
 import {
   ACTION_PREFIX,
   BASIC_ACTIONS,
@@ -28,7 +29,7 @@ export const LIMITATIONS: readonly string[] = [
   'Parameters are omitted. Action identifiers are untrusted and may reveal app usage.',
   'Rules cover a limited set of action identifiers, not every Apple or third-party action.',
   'Dependencies show explicit OutputUUID references, not proven runtime data flows.',
-  'Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Where an action takes the output of the previous action by default, that is an inference and is marked as one. Nested workflows and permissions are not resolved.',
+  'Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Where an action takes the output of the previous action by default, that is an inference and is marked as one. Possible paths from sensitive inputs to outbound actions follow references, variables, and those inferences; they are not proof of what is sent. Nested workflows and permissions are not resolved.',
   'No findings does not mean safe; destinations, payloads, and runtime behavior need manual review.',
 ];
 
@@ -499,6 +500,7 @@ export function inspectWorkflow(workflow: unknown, options: InspectOptions = {})
       ...(flow ? { flow } : {}),
     };
   });
+  findings.push(...sourceToSinkFindings(actions));
   const grouped = groupFindings(findings);
   return {
     formatVersion: 2,

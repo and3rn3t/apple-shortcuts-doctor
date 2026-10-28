@@ -63,6 +63,26 @@ function findingLine(finding: Finding): string {
   return `${finding.severity.toUpperCase()} ${finding.code} (${targets}): ${finding.message}`;
 }
 
+const MAX_PATHS_SHOWN = 3;
+const MAX_PATH_STEPS_SHOWN = 12;
+
+/** Example routes under a possible-flow finding; a long route shows its start and end. */
+function pathLines(finding: Finding): string[] {
+  const paths = finding.paths ?? [];
+  const lines = paths.slice(0, MAX_PATHS_SHOWN).map(path => {
+    const steps = path.actions.map(index => `#${index}`);
+    const shown =
+      steps.length > MAX_PATH_STEPS_SHOWN
+        ? [...steps.slice(0, 6), '...', ...steps.slice(-5)]
+        : steps;
+    return `possible path: ${shown.join(' -> ')}${path.inferred ? ' (includes an inferred step)' : ''}`;
+  });
+  if (paths.length > MAX_PATHS_SHOWN) {
+    lines.push(`and ${paths.length - MAX_PATHS_SHOWN} more path(s) in the JSON report`);
+  }
+  return lines;
+}
+
 function section(title: string, lines: string[], empty: string): string[] {
   return [title, ...(lines.length ? lines : [empty])];
 }
@@ -80,7 +100,10 @@ export function renderText(report: Report): string {
     '',
     ...section(
       'Findings',
-      report.findings.map(findingLine),
+      report.findings.flatMap(finding => [
+        findingLine(finding),
+        ...pathLines(finding).map(line => `  ${line}`),
+      ]),
       '(none; this is not a safety verdict)'
     ),
     '',
@@ -105,7 +128,10 @@ export function renderMarkdown(report: Report): string {
     '',
     ...section(
       '## Findings',
-      report.findings.map(finding => `- ${findingLine(finding)}`),
+      report.findings.flatMap(finding => [
+        `- ${findingLine(finding)}`,
+        ...pathLines(finding).map(line => `  - ${line}`),
+      ]),
       '_None. This is not a safety verdict._'
     ),
     '',
