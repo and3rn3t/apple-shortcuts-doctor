@@ -40,7 +40,7 @@ describe('renderers', () => {
   it('renders markdown with headings', () => {
     const md = renderMarkdown(report);
     expect(md).toContain('## Findings');
-    expect(md).toContain('2. `downloadurl` [outbound] <- #1');
+    expect(md).toContain('- 2\\. `downloadurl` [outbound] <- #1');
   });
 
   it('does not leak parameter values or UUIDs', () => {
@@ -80,8 +80,20 @@ describe('nested blocks in the renderers', () => {
     expect(lines).toContain('4. conditional [basic] {block 1 end}');
   });
 
-  it('indents markdown by three spaces per level so it nests as a list', () => {
-    expect(renderMarkdown(nested).split('\n')).toContain('   2. `text` [basic]');
+  it('nests markdown as bullets and keeps the action number, in every position', () => {
+    expect(renderMarkdown(nested).split('\n')).toContain('  - 2\\. `text` [basic]');
+  });
+
+  it('keeps nesting and numbering for multi-digit action numbers', () => {
+    const filler = Array.from({ length: 9 }, () => action('text'));
+    const report = inspectWorkflow(
+      workflow(...filler, block(0, 'A'), action('text'), block(2, 'A'))
+    );
+    const lines = renderMarkdown(report).split('\n');
+    expect(lines).toContain('- 10\\. `conditional` [basic] {block 1 start}');
+    expect(lines).toContain('  - 11\\. `text` [basic]');
+    expect(lines).toContain('- 12\\. `conditional` [basic] {block 1 end}');
+    expect(lines.some(line => /^\s*\d+\. /.test(line) && line.includes('`'))).toBe(false);
   });
 
   it('stops indenting at ten levels', () => {

@@ -44,6 +44,15 @@ describe('report v2', () => {
     expect(validate(broken)).toBe(false);
   });
 
+  it('still accepts the actions of reports written before depth and flow existed', () => {
+    const old = structuredClone(sample);
+    for (const entry of old.actions as unknown as Record<string, unknown>[]) {
+      delete entry.depth;
+      delete entry.flow;
+    }
+    expect(validate(old), JSON.stringify(validate.errors)).toBe(true);
+  });
+
   it('rejects the legacy shape', () => {
     expect(validate(toReportV1(sample))).toBe(false);
   });

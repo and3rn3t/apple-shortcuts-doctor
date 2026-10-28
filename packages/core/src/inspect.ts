@@ -186,7 +186,8 @@ function analyzeControlFlow(rawActions: RawAction[]): ControlFlow {
     const id = parameters?.GroupingIdentifier;
     flows.push(undefined);
     depths.push(open.length);
-    if (mode === undefined) return;
+    // Skip only actions with neither structural field: a group id with no mode is an unreadable marker.
+    if (mode === undefined && id === undefined) return;
     if (!(mode === 0 || mode === 1 || mode === 2) || typeof id !== 'string' || id === '') {
       unbalanced.add(position);
       return;
