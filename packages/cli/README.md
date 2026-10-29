@@ -101,7 +101,10 @@ Variable` or `Add to Variable`; branches and loops are not followed). `<? #3` me
 inference for a short list of actions that default to the previous output, never stated in the
 export. `{reads clipboard}` marks a
 variable token that reads the clipboard, device details, and so on without a separate action.
-`WARNING possible-flow (#4, #7, #35)` means data from sensitive inputs #4 and #7 may reach outbound
+`hardcoded-secret` findings list the actions that seem to hold a token, key, or password: a known
+token format or a secret-named field with a literal value (`warning`), or a value that is just one
+long random-looking token (`review`). The report names the action only, never the value, any part
+of it, or its length. `WARNING possible-flow (#4, #7, #35)` means data from sensitive inputs #4 and #7 may reach outbound
 action #35; the `possible path:` lines under it show example routes. It is derived from references,
 variables, and inferred default inputs, so it says "may", never "does". Indentation and `{block N ...}` show if / menu / repeat blocks. Variable names appear only with
 `--show-variable-names`. `{POST, json body, 2 headers, dynamic URL}` describes the shape of a Get

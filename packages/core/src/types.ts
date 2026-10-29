@@ -9,7 +9,8 @@ export type FindingCode =
   | 'duplicate-output'
   | 'unresolved-reference'
   | 'unbalanced-control-flow'
-  | 'possible-flow';
+  | 'possible-flow'
+  | 'hardcoded-secret';
 
 /** Review priority, not a vulnerability verdict. */
 export type Severity = 'review' | 'warning';

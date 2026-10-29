@@ -408,3 +408,19 @@ describe('request shape', () => {
     expect(document.body.innerHTML).not.toMatch(/private-host|secret|token=abc|Authorization/);
   });
 });
+
+describe('hardcoded secrets', () => {
+  const secret = ['gh', 'p_', 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789'].join('');
+
+  it('lists the action under its own heading and never shows the value or any part of it', () => {
+    show(reportOf(action('gettext', { WFTextActionText: secret })));
+    expect(headingTexts(4)).toContain('Warning (1)');
+    expect(headingTexts(5)).toContain('Hardcoded secrets');
+    const item = screen
+      .getByText(/seems to contain a hardcoded secret/)
+      .closest('li') as HTMLElement;
+    expect(item.textContent).toContain('Action #1');
+    expect(document.body.innerHTML).not.toContain(secret);
+    expect(document.body.innerHTML).not.toContain(secret.slice(0, 6));
+  });
+});

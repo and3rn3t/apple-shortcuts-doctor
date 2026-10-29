@@ -184,6 +184,147 @@ function requestShape(identifier, parameters, includeHosts) {
   return shape;
 }
 
+// packages/core/src/secrets.ts
+var PLACEHOLDER2 = "\uFFFC";
+var MAX_ENTROPY_TOKEN = 200;
+var MIN_ENTROPY_TOKEN = 24;
+var MIN_HEX_TOKEN = 32;
+var SKIP_KEYS = /* @__PURE__ */ new Set([
+  "UUID",
+  "OutputUUID",
+  "GroupingIdentifier",
+  "WFWorkflowActionIdentifier",
+  "Type",
+  "WFSerializationType",
+  "VariableName",
+  "OutputName"
+]);
+var TOKEN_FORMATS = [
+  /AKIA[0-9A-Z]{16}/,
+  /gh[pousr]_[A-Za-z0-9]{30,}/,
+  /github_pat_[A-Za-z0-9_]{30,}/,
+  /xox[abprs]-[A-Za-z0-9-]{20,}/,
+  /sk_live_[A-Za-z0-9]{16,}/,
+  /sk-(?:ant-|proj-)?[A-Za-z0-9_-]{32,}/,
+  /AIza[0-9A-Za-z_-]{30,}/,
+  /-----BEGIN [A-Z ]{0,30}PRIVATE KEY-----/,
+  /\b(?:Bearer|Basic) [A-Za-z0-9._~+/=-]{20,}/,
+  /[a-z][a-z0-9+.-]{0,20}:\/\/[^\s/:@]{1,100}:[^\s/@]{3,100}@/i
+];
+var SECRET_NAME = /api[-_ ]?key|apikey|secret|passw(?:or)?d|passwd|pwd|token|authorization|auth[-_ ]?key|bearer|private[-_ ]?key|access[-_ ]?key/i;
+var SECRET_IN_QUERY = /[?&;](?:api[-_]?key|apikey|access[-_]?token|token|secret|password|passwd|auth|key)=([^&\s#]{8,})/gi;
+var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var AUTH_SCHEME = /^(?:Bearer|Basic|Token)\s+/i;
+function isRecord2(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+function readText2(value) {
+  if (typeof value === "string") return value;
+  if (isRecord2(value) && isRecord2(value.Value) && typeof value.Value.string === "string") {
+    return value.Value.string;
+  }
+  return void 0;
+}
+function looksLikeSecretValue(raw) {
+  const value = raw.trim().replace(AUTH_SCHEME, "");
+  if (value.length < 8 || value.length > 2048 || /\s/.test(value) || value.includes(PLACEHOLDER2)) {
+    return false;
+  }
+  return /\d/.test(value) || /[A-Z]/.test(value) && /[a-z]/.test(value) || /[^A-Za-z0-9]/.test(value);
+}
+function shannonEntropy(token) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const character of token) counts.set(character, (counts.get(character) ?? 0) + 1);
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const probability = count / token.length;
+    entropy -= probability * Math.log2(probability);
+  }
+  return entropy;
+}
+function looksRandom(token) {
+  if (token.length > MAX_ENTROPY_TOKEN || UUID.test(token)) return false;
+  const hasDigit = /\d/.test(token);
+  const hasLetter = /[A-Za-z]/.test(token);
+  if (!hasDigit || !hasLetter) return false;
+  if (/^[0-9a-f]+$/i.test(token))
+    return token.length >= MIN_HEX_TOKEN && shannonEntropy(token) >= 3;
+  return token.length >= MIN_ENTROPY_TOKEN && shannonEntropy(token) >= 4;
+}
+function isWholeRandomToken(text) {
+  const token = text.trim();
+  return /^[A-Za-z0-9_-]{24,200}$/.test(token) && looksRandom(token);
+}
+function hasJwt(text) {
+  for (const run of text.matchAll(/[A-Za-z0-9_.-]{38,}/g)) {
+    const segments = run[0].split(".");
+    for (let index = 0; index + 2 < segments.length; index++) {
+      const [header, payload, signature] = [
+        segments[index],
+        segments[index + 1],
+        segments[index + 2]
+      ];
+      if (header?.startsWith("eyJ") && payload?.startsWith("eyJ") && header.length >= 13 && payload.length >= 13 && (signature?.length ?? 0) >= 10) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+function matchesTokenFormat(text) {
+  return hasJwt(text) || TOKEN_FORMATS.some((format) => format.test(text));
+}
+function hasSecretInQuery(text) {
+  for (const match of text.matchAll(SECRET_IN_QUERY)) {
+    if (looksLikeSecretValue(match[1] ?? "")) return true;
+  }
+  return false;
+}
+function isNamedSecretEntry(entry) {
+  const key = readText2(entry.WFKey);
+  const value = readText2(entry.WFValue);
+  if (key === void 0 || value === void 0) return false;
+  return SECRET_NAME.test(key) && looksLikeSecretValue(value);
+}
+function findSecretKinds(parameters) {
+  const kinds = /* @__PURE__ */ new Set();
+  const stack = [
+    { value: parameters, key: void 0 }
+  ];
+  while (stack.length) {
+    const { value, key } = stack.pop();
+    if (typeof value === "string") {
+      if (key !== void 0 && SKIP_KEYS.has(key)) continue;
+      if (value.split(PLACEHOLDER2).some(matchesTokenFormat)) kinds.add("format");
+      else if (hasSecretInQuery(value)) kinds.add("named");
+      else if (isWholeRandomToken(value)) kinds.add("entropy");
+      continue;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) stack.push({ value: item, key });
+      continue;
+    }
+    if (!isRecord2(value)) continue;
+    if (isNamedSecretEntry(value)) kinds.add("named");
+    for (const [childKey, child] of Object.entries(value))
+      stack.push({ value: child, key: childKey });
+  }
+  if (kinds.has("format") || kinds.has("named")) kinds.delete("entropy");
+  return kinds;
+}
+var MESSAGES = {
+  format: "This action seems to contain a hardcoded secret, such as a token, key, or password. The value is not shown; keep secrets out of the Shortcut.",
+  named: "This action seems to contain a hardcoded secret, such as a token, key, or password. The value is not shown; keep secrets out of the Shortcut.",
+  entropy: "This action contains a long random-looking string that may be a hardcoded secret. The value is not shown; check it and keep secrets out of the Shortcut."
+};
+var SECRET_RULES = {
+  format: { ruleId: "secret-token-format", severity: "warning", message: MESSAGES.format },
+  named: { ruleId: "secret-named-field", severity: "warning", message: MESSAGES.named },
+  entropy: { ruleId: "secret-high-entropy", severity: "review", message: MESSAGES.entropy }
+};
+
 // packages/core/src/rules.ts
 var ACTION_PREFIX = "is.workflow.actions.";
 var APPLE_INTENT_PREFIX = "com.apple.";
@@ -506,19 +647,19 @@ var LIMITATIONS = [
   "Blocks (if, menu, repeat) are shown as structure and never evaluated. Variables are linked by name to the closest earlier set or append, ignoring branches and loops. Where an action takes the output of the previous action by default, that is an inference and is marked as one. Possible paths from sensitive inputs to outbound actions follow references, variables, and those inferences; they are not proof of what is sent. Nested workflows and permissions are not resolved.",
   "No findings does not mean safe; destinations, payloads, and runtime behavior need manual review."
 ];
-function isRecord2(value) {
+function isRecord3(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 function isValidAction(action) {
-  if (!isRecord2(action)) return false;
+  if (!isRecord3(action)) return false;
   const identifier = action.WFWorkflowActionIdentifier;
   const parameters = action.WFWorkflowActionParameters;
-  return typeof identifier === "string" && ACTION_IDENTIFIER_PATTERN.test(identifier) && identifier.length <= MAX_IDENTIFIER_LENGTH && (parameters === void 0 || isRecord2(parameters));
+  return typeof identifier === "string" && ACTION_IDENTIFIER_PATTERN.test(identifier) && identifier.length <= MAX_IDENTIFIER_LENGTH && (parameters === void 0 || isRecord3(parameters));
 }
 function validateWorkflow(workflow) {
-  if (!isRecord2(workflow) || !Array.isArray(workflow.WFWorkflowActions)) {
+  if (!isRecord3(workflow) || !Array.isArray(workflow.WFWorkflowActions)) {
     throw new Error("Expected a workflow dictionary containing WFWorkflowActions.");
   }
   const declaredActions = workflow.WFWorkflowActions;
@@ -561,7 +702,7 @@ function visitRecords(parameters, visit) {
       for (const item of value) stack.push(item);
       continue;
     }
-    if (!isRecord2(value)) continue;
+    if (!isRecord3(value)) continue;
     visit(value);
     for (const child of Object.values(value)) stack.push(child);
   }
@@ -842,6 +983,10 @@ function inspectWorkflow(workflow, options = {}) {
     if (references.unresolvedReferenceCount) findings.push(unresolvedReferenceFinding(position));
     const variableUse = variables.visit(action, position);
     findings.push(...magicInputFindings(variableUse.magicInputs, position));
+    for (const kind of findSecretKinds(action.WFWorkflowActionParameters ?? {})) {
+      const { ruleId, severity, message } = SECRET_RULES[kind];
+      findings.push({ code: "hardcoded-secret", ruleId, severity, actions: [position], message });
+    }
     const flow = controlFlow.flows[index];
     const parameters = action.WFWorkflowActionParameters ?? {};
     const request = requestShape(identifier, parameters, options.includeHosts === true);
