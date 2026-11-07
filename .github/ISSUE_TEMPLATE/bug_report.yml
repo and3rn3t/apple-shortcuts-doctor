@@ -52,7 +52,6 @@ body:
     attributes:
       label: Environment
       description: Where did you encounter this bug?
-      # TODO: Replace these options with your project's supported environments.
       options:
         - Production
         - Staging
